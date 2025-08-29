@@ -55,11 +55,11 @@ class Mieai:
         # ==== TODO: check if inputs are floats or arrays, if arrays check dimensions
 
         # check inputs are correct type
-        if not isinstance(wavelength, np.ndarray) or not isinstance(wavelength, (float, int)):
+        if not isinstance(wavelength, np.ndarray) and not isinstance(wavelength, (float, int)):
             print('Wavelength must be of type np.ndarray or float')
-        if not isinstance(particle_size, np.ndarray) or not isinstance(particle_size, (float, int)):
+        if not isinstance(particle_size, np.ndarray) and not isinstance(particle_size, (float, int)):
             print('Particle size must be of type np.ndarray or float')
-        if not isinstance(volume_mixing_ratios, dict) or not isinstance(volume_mixing_ratios, (float, int)):
+        if not isinstance(volume_mixing_ratios, dict) and not isinstance(volume_mixing_ratios, (float, int)):
             print('Volume mixing ratio must be of type dict or float')
 
         # convert floats to arrays
@@ -87,11 +87,11 @@ class Mieai:
         # ==== TODO: find a way to quickly search for the right model
         self.model.load_weights(os.path.dirname(__file__) + '/models/model47.weights.h5')
 
-        # ==== define input array TODO: generalise this for all models
-        inputs = np.stack((np.asarray([np.log10(wavelength)]),
-                           np.asarray([np.log10(particle_size)]),
-                           np.asarray([volume_mixing_ratios['TiO2[s]']]),
-                           np.asarray([volume_mixing_ratios['Fe[s]']])), axis=1)
+        # ==== define input array TODO: generalize this for all models
+        inputs = np.stack((np.asarray(np.log10(wavelength)),
+                           np.asarray(np.log10(particle_size)),
+                           np.asarray(volume_mixing_ratios['TiO2[s]']),
+                           np.asarray(volume_mixing_ratios['Fe[s]'])), axis=1)
 
         outputs = self.model.predict(inputs)
         qext = outputs[0][:, 0]
