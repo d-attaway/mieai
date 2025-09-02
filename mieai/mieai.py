@@ -68,35 +68,43 @@ class Mieai:
         if isinstance(particle_size, (float, int)):
             particle_size = np.array([particle_size])
 
+        # make all possible combinations of wavelength & particle size
+        final_wavelength = np.repeat(wavelength, len(particle_size))
+        final_particle_size = np.tile(particle_size, len(wavelength))
+
+        #adjust volume mixing ratio
+        vmr = np.array(list(volume_mixing_ratios.values())).T
+        final_vmr = np.tile(vmr, (len(wavelength), 1))
+
         # check dimensions
-        if wavelength.shape != particle_size.shape:
-            print('Wavelength and particle size must have same shape')
         if len(set(map(len, volume_mixing_ratios.values()))) != 1:
             print('Volume mixing ratios must have same shape')
-        if len(wavelength) != len(particle_size) != len(volume_mixing_ratios.values()[0]):
+        if len(particle_size) != len(vmr):
             print('Wavelength, particle size, and volume mixing ratio must have same shape')
 
         # ==== TODO: check if vmrs add to 1, give warning and renormalize if not
-        vmr = np.array(list(volume_mixing_ratios.values())).T
-        for row in np.arange(0, len(vmr), 1):
-            if np.sum(vmr[row, :]) != 1:
-                print('Volume mixing ratios must add up to 1')
-                # TODO: RENORMALIZE HERE
+
+        vmr_sum = np.sum(final_vmr, axis=1)
+        if any(vmr_sum != 1):
+            print('Volume mixing ratios do not add up to 1. The ratios have been renormalized.')
+        idx = np.asarray(np.where(vmr_sum != 1))
+        for i in idx[0]:
+            final_vmr[i] = final_vmr[i] / sum(final_vmr[i])
 
         # ==== Prepare model ============================================================
         # ==== TODO: find a way to quickly search for the right model
         self.model.load_weights(os.path.dirname(__file__) + '/models/model47.weights.h5')
 
         # ==== define input array TODO: generalize this for all models
-        inputs = np.stack((np.asarray(np.log10(wavelength)),
-                           np.asarray(np.log10(particle_size)),
-                           np.asarray(volume_mixing_ratios['TiO2[s]']),
-                           np.asarray(volume_mixing_ratios['Fe[s]'])), axis=1)
+        inputs = np.stack((np.asarray(np.log10(final_wavelength)),
+                           np.asarray(np.log10(final_particle_size)),
+                           np.asarray(final_vmr[:,0]),
+                           np.asarray(final_vmr[:,1])), axis=1)
 
         outputs = self.model.predict(inputs)
-        qext = outputs[0][:, 0]
-        qsca = outputs[1][:, 0]
-        asym = outputs[2][:, 0]
+        qext = outputs[0][:, 0].reshape((len(wavelength), len(particle_size)))
+        qsca = outputs[1][:, 0].reshape((len(wavelength), len(particle_size)))
+        asym = outputs[2][:, 0].reshape((len(wavelength), len(particle_size)))
 
         return qext, qsca, asym
 
