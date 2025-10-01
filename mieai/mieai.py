@@ -264,3 +264,5 @@ class Mieai:
         qext = qe_temp.reshape((len(wavelength), len(particle_size)))
         qsca = qs_temp.reshape((len(wavelength), len(particle_size)))
         asym = g_temp.reshape((len(wavelength), len(particle_size)))
+
+        return qext, qsca, asym
