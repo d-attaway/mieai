@@ -35,7 +35,7 @@ class Mieai:
         self.model = keras.Model(inputs, outputs=[output1, output2, output3])
 
         # ==== Load species data from files ==============================================================
-        self.files = glob.glob('first_files/nk_data/*.dat')
+        self.files = glob.glob(os.path.dirname(__file__) + '/../first_files/nk_data/*.dat')
         self.species_list = ['TiO2[s]', 'Fe[s]', 'Mg2SiO4[s]']
 
 
