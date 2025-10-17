@@ -35,8 +35,8 @@ class Mieai:
         self.model = keras.Model(inputs, outputs=[output1, output2, output3])
 
         # ==== Load species data from files ==============================================================
-        self.files = glob.glob(os.path.dirname(__file__) + '/first_files/nk_data/*.dat')
-        self.species_list = ['TiO2[s]', 'Fe[s]', 'Mg2SiO4[s]']
+        self.files = glob.glob(os.path.dirname(__file__) + '/opacity_files/*.refrind')
+        self.species_list = ['TiO2', 'Fe', 'Mg2SiO4']
 
 
     def ai_efficiencies(self, wavelength, particle_size, volume_mixing_ratios):
@@ -173,9 +173,7 @@ class Mieai:
             for file in self.files:
                 if species in file:
                     # get data
-                    content = open(file, 'r').readlines()
-                    header = content[0].split()[1]
-                    data = content[5:]
+                    data = open(file, 'r').readlines()
 
             # ==== Get the real(n) and imaginary (k) refractory index ===============================================================
 
@@ -207,33 +205,9 @@ class Mieai:
                         break
 
                 else:
-                    # if wavelength is out of range, extrapolate
-                    if header == '.True.':
-                        # conducting interpolation, log-log interpolation
-                        # find 70% wavelength
-                        cur_wave = float(data[0].split()[0])  # current wavelength
-                        max_wave = float(data[-1].split()[0])  # maximum wavelength
-                        c_nr = 0
-                        for dnr, _ in enumerate(data):
-                            cur_wave = float(data[dnr].split()[0])  # current wavelength
-                            if cur_wave < 0.7 * max_wave:
-                                break
-                            c_nr += 1
-                        nlo = float(data[c_nr].split()[1])  # lower n value
-                        nhi = float(data[-1].split()[1])  # higher n value
-                        klo = float(data[c_nr].split()[2])  # lower k value
-                        khi = float(data[-1].split()[2])  # higher k value
-                        # calculate interpolation
-                        fac = np.log(wave / max_wave) / np.log(cur_wave / max_wave)
-                        ref_index[s, wav, 0] = np.exp(np.log(nhi) + fac * np.log(nlo / nhi))
-                        if klo <= 0 or khi <= 0:
-                            ref_index[s, wav, 1] = 0
-                        else:
-                            ref_index[s, wav, 1] = np.exp(np.log(khi) + fac * np.log(klo / khi))
-                    else:
-                        # non-conducting interpolation, linear decreasing k, constant n
-                        ref_index[s, wav, 0] = float(data[-1].split()[1])
-                        ref_index[s, wav, 1] = float(data[-1].split()[2]) * float(data[-1].split()[0]) / wave
+                    # non-conducting interpolation, linear decreasing k, constant n
+                    ref_index[s, wav, 0] = float(data[-1].split()[1])
+                    ref_index[s, wav, 1] = float(data[-1].split()[2]) * float(data[-1].split()[0]) / wave
 
         # ==== Combination of all wavelengths and particle size ====================================================
         final_wavelength = np.repeat(wavelength, len(particle_size))
