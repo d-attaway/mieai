@@ -161,6 +161,35 @@ class Mieai:
         for i in idx[0]:
             vmr[i] = vmr[i] / sum(vmr[i])
 
+        # ==== Radius averaging ======================================================================================================
+        if len(particle_size) > 1:
+            # prepare outputs
+            rad_min = np.zeros_like(particle_size)
+            rad_max = np.zeros_like(particle_size)
+            mid_points = (particle_size[1:] + particle_size[:-1]) / 2
+
+            # radius minimum and maximum from midpoints
+            rad_min[1:] = mid_points
+            rad_min[0] = max(particle_size[0] - mid_points[0], 0)  # smallest radius value >0
+            rad_max[:-1] = mid_points
+            rad_max[-1] = particle_size[-1] + mid_points[-1]
+
+            # prepare output
+            sub_rad = np.zeros((len(particle_size) * 6))
+            i = 0
+            for r_max, r_min in zip(rad_max, rad_min):
+                # six radius points to average over
+                r = (r_max - r_min) / 6
+                rad_range = np.array([r, 2 * r, 3 * r, 4 * r, 5 * r, 6 * r])
+                sub_rad[i:i + 6] = rad_range
+                # index
+                i = i + 1
+            # make volume mixing ratios the same size as particle size
+            vmr = np.repeat(vmr, len(sub_rad), axis=0)
+
+        else:
+            sub_rad = particle_size
+
         # ==== Load data for each species from files and get refractive index =======================================================
 
         #prepare output
@@ -210,15 +239,14 @@ class Mieai:
                     ref_index[s, wav, 1] = float(data[-1].split()[2]) * float(data[-1].split()[0]) / wave
 
         # ==== Combination of all wavelengths and particle size ====================================================
-        final_wavelength = np.repeat(wavelength, len(particle_size))
-        final_particle_size = np.tile(particle_size, len(wavelength))
+        final_wavelength = np.repeat(wavelength, len(sub_rad))
+        final_sub_rad = np.tile(sub_rad, len(wavelength))
         final_vmr = np.tile(vmr, (len(wavelength), 1))
-        final_ref_index = np.repeat(ref_index, len(particle_size), axis=1)
+        final_ref_index = np.repeat(ref_index, len(sub_rad), axis=1)
 
         # prepare outputs
         mixed_ref_index = np.zeros(len(final_wavelength), dtype=complex)
 
-        # ==== Find mixed refractive index ==========================================================================
         # loop over wavelength
         for wav, wave in enumerate(final_wavelength):
             # dielectric constant = (n + ik)^2
@@ -230,13 +258,19 @@ class Mieai:
             mixed_ref_index[wav] = complex(m_eff.real, -m_eff.imag)
 
         # ==== Calculate Mie Efficiencies ====================================================================
-        size_param = (2.0 * np.pi * final_particle_size) / final_wavelength
+        size_param = (2.0 * np.pi * final_sub_rad) / final_wavelength
 
         # qe_temp = extinction, qs_temp = scattering, g_temp = asymmetry
         qe_temp, qs_temp, _, g_temp = mie.efficiencies_mx(mixed_ref_index, size_param)
 
-        qext = qe_temp.reshape((len(wavelength), len(particle_size)))
-        qsca = qs_temp.reshape((len(wavelength), len(particle_size)))
-        asym = g_temp.reshape((len(wavelength), len(particle_size)))
+        if len(sub_rad) != len(particle_size):
+            extinction = np.mean(qe_temp.reshape(len(particle_size) * len(wavelength), 6), axis=1).reshape((len(wavelength), len(particle_size)))
+            scattering = np.mean(qs_temp.reshape(len(particle_size) * len(wavelength), 6), axis=1).reshape((len(wavelength), len(particle_size)))
+            asymmetry = np.mean(g_temp.reshape(len(particle_size) * len(wavelength), 6), axis=1).reshape((len(wavelength), len(particle_size)))
 
-        return qext, qsca, asym
+        else:
+            extinction = qe_temp.reshape((len(wavelength), len(particle_size)))
+            scattering = qs_temp.reshape((len(wavelength), len(particle_size)))
+            asymmetry = g_temp.reshape((len(wavelength), len(particle_size)))
+
+        return extinction, scattering, asymmetry
