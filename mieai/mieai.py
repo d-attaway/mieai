@@ -4,6 +4,7 @@ from tensorflow import keras
 from keras import layers
 import glob
 import miepython as mie
+import pandas as pd
 
 
 class Mieai:
@@ -170,7 +171,7 @@ class Mieai:
 
             # radius minimum and maximum from midpoints
             rad_min[1:] = mid_points
-            rad_min[0] = max(particle_size[0] - mid_points[0], 0)  # smallest radius value >0
+            rad_min[0] = np.max([particle_size[0] - mid_points[0], 0])  # smallest radius value >0
             rad_max[:-1] = mid_points
             rad_max[-1] = particle_size[-1] + mid_points[-1]
 
@@ -179,13 +180,13 @@ class Mieai:
             i = 0
             for r_max, r_min in zip(rad_max, rad_min):
                 # six radius points to average over
-                r = (r_max - r_min) / 6
+                r = r_min + ((r_max - r_min) / 6)
                 rad_range = np.array([r, 2 * r, 3 * r, 4 * r, 5 * r, 6 * r])
                 sub_rad[i:i + 6] = rad_range
                 # index
-                i = i + 1
+                i = i + 6
             # make volume mixing ratios the same size as particle size
-            vmr = np.repeat(vmr, len(sub_rad), axis=0)
+            vmr = np.repeat(vmr, 6, axis=0)
 
         else:
             sub_rad = particle_size
@@ -201,28 +202,30 @@ class Mieai:
             # find species in files
             for file in self.files:
                 if species in file:
-                    # get data
-                    data = open(file, 'r').readlines()
+                    # get data using pandas
+                    content = pd.read_csv(file, sep=r'\s+', header=None, usecols=[1, 2, 3])
+                    # convert to array and flip vertically so wavelength increases
+                    data = np.flip(content.to_numpy(), axis=0)
 
             # ==== Get the real(n) and imaginary (k) refractory index ===============================================================
 
             # loop over all wavelengths
             for wav, wave in enumerate(wavelength):
                 # if desired wavelength is smaller than data, use the smallest wavelength data available
-                if wave < float(data[0].split()[0]):
-                    ref_index[s, wav, 0] = float(data[0].split()[1])
-                    ref_index[s, wav, 1] = float(data[0].split()[2])
+                if wave < float(data[0, 0]):
+                    ref_index[s, wav, 0] = float(data[0, 1])
+                    ref_index[s, wav, 1] = float(data[0, 2])
                     continue
 
                 # if wavelength is within range log-log interpolation for dnr, _ in enumerate(data):
                 for dnr, _ in enumerate(data):
-                    cur_wave = float(data[dnr].split()[0])  # current wavelength
+                    cur_wave = float(data[dnr, 0])  # current wavelength
                     if wave < cur_wave:
-                        nlo = float(data[dnr - 1].split()[1])  # lower n value
-                        nhi = float(data[dnr].split()[1])  # higher n value
-                        klo = float(data[dnr - 1].split()[2])  # lower k value
-                        khi = float(data[dnr].split()[2])  # higher k value
-                        prev_wave = float(data[dnr - 1].split()[0])  # previous wavelength
+                        nlo = float(data[dnr - 1, 1])  # lower n value
+                        nhi = float(data[dnr, 1])  # higher n value
+                        klo = float(data[dnr - 1, 2])  # lower k value
+                        khi = float(data[dnr, 2])  # higher k value
+                        prev_wave = float(data[dnr - 1, 0])  # previous wavelength
                         # calculate interpolation
                         fac = np.log(wave / prev_wave) / np.log(cur_wave / prev_wave)
                         ref_index[s, wav, 0] = np.exp(np.log(nlo) + fac * np.log(nhi / nlo))
@@ -234,9 +237,10 @@ class Mieai:
                         break
 
                 else:
+                    # if wavelength is out of range, extrapolate
                     # non-conducting interpolation, linear decreasing k, constant n
-                    ref_index[s, wav, 0] = float(data[-1].split()[1])
-                    ref_index[s, wav, 1] = float(data[-1].split()[2]) * float(data[-1].split()[0]) / wave
+                    ref_index[s, wav, 0] = float(data[-1, 1])
+                    ref_index[s, wav, 1] = float(data[-1, 2]) * float(data[-1, 0]) / wave
 
         # ==== Combination of all wavelengths and particle size ====================================================
         final_wavelength = np.repeat(wavelength, len(sub_rad))
@@ -264,13 +268,13 @@ class Mieai:
         qe_temp, qs_temp, _, g_temp = mie.efficiencies_mx(mixed_ref_index, size_param)
 
         if len(sub_rad) != len(particle_size):
-            extinction = np.mean(qe_temp.reshape(len(particle_size) * len(wavelength), 6), axis=1).reshape((len(wavelength), len(particle_size)))
-            scattering = np.mean(qs_temp.reshape(len(particle_size) * len(wavelength), 6), axis=1).reshape((len(wavelength), len(particle_size)))
-            asymmetry = np.mean(g_temp.reshape(len(particle_size) * len(wavelength), 6), axis=1).reshape((len(wavelength), len(particle_size)))
+            extinction = np.mean(qe_temp.reshape(len(particle_size) * len(wavelength), 6), axis=1).reshape(len(wavelength), len(particle_size)).T
+            scattering = np.mean(qs_temp.reshape(len(particle_size) * len(wavelength), 6), axis=1).reshape(len(wavelength), len(particle_size)).T
+            asymmetry = np.mean(g_temp.reshape(len(particle_size) * len(wavelength), 6), axis=1).reshape(len(wavelength), len(particle_size)).T
 
         else:
-            extinction = qe_temp.reshape((len(wavelength), len(particle_size)))
-            scattering = qs_temp.reshape((len(wavelength), len(particle_size)))
-            asymmetry = g_temp.reshape((len(wavelength), len(particle_size)))
+            extinction = qe_temp.reshape(len(wavelength), len(particle_size)).T
+            scattering = qs_temp.reshape(len(wavelength), len(particle_size)).T
+            asymmetry = g_temp.reshape(len(wavelength), len(particle_size)).T
 
         return extinction, scattering, asymmetry
