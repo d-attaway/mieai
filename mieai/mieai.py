@@ -46,16 +46,16 @@ class Mieai:
 
         Parameters
         ----------
-        wavelength : np.ndarray or float
+        wavelength : np.ndarray or float of size N
             Wavelength of the light [micron]
-        particle_size : np.ndarray or float
+        particle_size : np.ndarray or float of size M
             Size of the cloud particle [micron]
-        volume_mixing_ratios : dict of np.ndarray or float
+        volume_mixing_ratios : dict of np.ndarray or float of size M for each species
             Fraction of each cloud material given as float or array
 
         Return
         ------
-        optical properties : np.ndarray
+        optical properties : np.ndarray of size (M, N)
             extinction coefficient, scattering coefficient, and asymmetries parameter
         """
 
@@ -118,16 +118,16 @@ class Mieai:
 
         Parameters
         ----------
-        wavelength : np.ndarray or float
+        wavelength : np.ndarray or float of size N
             Wavelength of the light [micron]
-        particle_size : np.ndarray or float
+        particle_size : np.ndarray or float of size M
             Size of the cloud particle [micron]
-        volume_mixing_ratios : dict of np.ndarray or float
+        volume_mixing_ratios : dict of np.ndarray or float of size M for each species
             Fraction of each cloud material given as float or array
 
         Return
         ------
-        optical properties : np.ndarray
+        optical properties : np.ndarray of size (M, N)
             extinction coefficient, scattering coefficient, and asymmetries parameter
         """
         # ==== Prepare inputs =============================================================
@@ -163,30 +163,40 @@ class Mieai:
             vmr[i] = vmr[i] / sum(vmr[i])
 
         # ==== Radius averaging ======================================================================================================
-        if len(particle_size) > 1:
-            # prepare outputs
-            rad_min = np.zeros_like(particle_size)
-            rad_max = np.zeros_like(particle_size)
-            mid_points = (particle_size[1:] + particle_size[:-1]) / 2
+        if (len(particle_size) > 1):
+            if (len(set(particle_size)) != 1):
+                # prepare outputs
+                rad_min = np.zeros_like(particle_size)
+                rad_max = np.zeros_like(particle_size)
+                mid_points = (particle_size[1:] + particle_size[:-1]) / 2
 
-            # radius minimum and maximum from midpoints
-            rad_min[1:] = mid_points
-            rad_min[0] = np.max([particle_size[0] - mid_points[0], 0])  # smallest radius value >0
-            rad_max[:-1] = mid_points
-            rad_max[-1] = particle_size[-1] + mid_points[-1]
+                # radius minimum and maximum from midpoints
+                rad_min[1:] = mid_points
+                rad_min[0] = np.max([particle_size[0] - mid_points[0], 0])  # smallest radius value >0
+                rad_max[:-1] = mid_points
+                rad_max[-1] = particle_size[-1] + mid_points[-1]
 
-            # prepare output
-            sub_rad = np.zeros((len(particle_size) * 6))
-            i = 0
-            for r_max, r_min in zip(rad_max, rad_min):
-                # six radius points to average over
-                r = r_min + ((r_max - r_min) / 6)
-                rad_range = np.array([r, 2 * r, 3 * r, 4 * r, 5 * r, 6 * r])
-                sub_rad[i:i + 6] = rad_range
-                # index
-                i = i + 6
-            # make volume mixing ratios the same size as particle size
-            vmr = np.repeat(vmr, 6, axis=0)
+                # prepare output
+                sub_rad = np.zeros((len(particle_size) * 6))
+                i = 0 # index
+
+                for r_max, r_min in zip(rad_max, rad_min):
+                    # six radius points to average over
+                    r = r_min + ((r_max - r_min) / 6)
+                    rad_range = np.array([r, 2 * r, 3 * r, 4 * r, 5 * r, 6 * r])
+                    sub_rad[i:i + 6] = rad_range
+                    # index
+                    i += 6
+                # make volume mixing ratios the same size as particle size
+                vmr = np.repeat(vmr, 6, axis=0)
+
+            else:
+                sub_rad = np.zeros((len(particle_size) * 6))
+                i = 0
+                for rad in particle_size:
+                    sub_rad[i:i + 6] = np.linspace(rad * 0.7, rad * 1.3, 6)
+                    i += 6
+                vmr = np.repeat(vmr, 6, axis=0)
 
         else:
             sub_rad = particle_size
@@ -208,6 +218,9 @@ class Mieai:
                     data = np.flip(content.to_numpy(), axis=0)
 
             # ==== Get the real(n) and imaginary (k) refractory index ===============================================================
+            # prepare output
+            if not isinstance(wavelength, np.ndarray):
+                wavelength = np.asarray([wavelength])
 
             # loop over all wavelengths
             for wav, wave in enumerate(wavelength):
@@ -254,7 +267,7 @@ class Mieai:
         # loop over wavelength
         for wav, wave in enumerate(final_wavelength):
             # dielectric constant = (n + ik)^2
-            ind_eff = (final_ref_index[:, wav, 0] + (1j * final_ref_index[:, wav, 1])) ** 2
+            ind_eff = (final_ref_index[:, wav, 0] + (1j * final_ref_index[:, wav, 1]))** 2
             e_eff = (np.sum(final_vmr[wav] * (ind_eff ** (1 / 3)))) ** 3
 
             # find mixed refractive index, real(n) and imaginary(k)
