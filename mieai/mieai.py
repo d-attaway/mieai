@@ -6,34 +6,39 @@ import glob
 import miepython as mie
 import pandas as pd
 
+from .sub_functions import read_in_refindex, calculate_subradii
+from .mixing_theory import mixing_theory
+
 
 class Mieai:
-    def __init__(self):
-        # ==== Define ML model ==========================================================
-        inputs = keras.Input(shape=(4,), name='inputs')
-        # layers
-        hidden1 = layers.Dense(100, activation='gelu', kernel_initializer='he_normal')(inputs)
-        hidden2 = layers.Dense(100, activation='gelu', kernel_initializer='he_normal')(hidden1)
-        # extinction branch
-        ext_hidden1 = layers.Dense(100, activation='gelu', kernel_initializer='he_normal')(hidden2)
-        ext_hidden2 = layers.Dense(100, activation='gelu', kernel_initializer='he_normal')(ext_hidden1)
-        ext_hidden3 = layers.Dense(100, activation='gelu', kernel_initializer='he_normal')(ext_hidden2)
-        ext_hidden4 = layers.Dense(100, activation='gelu', kernel_initializer='he_normal')(ext_hidden3)
-        output1 = layers.Dense(1, activation='softplus', name='extinction')(ext_hidden4)
-        # scattering branch
-        sca_hidden1 = layers.Dense(100, activation='gelu', kernel_initializer='he_normal')(hidden2)
-        sca_hidden2 = layers.Dense(100, activation='gelu', kernel_initializer='he_normal')(sca_hidden1)
-        sca_hidden3 = layers.Dense(100, activation='gelu', kernel_initializer='he_normal')(sca_hidden2)
-        sca_hidden4 = layers.Dense(100, activation='gelu', kernel_initializer='he_normal')(sca_hidden3)
-        output2 = layers.Dense(1, activation='softplus', name='scattering')(sca_hidden4)
-        # asymmetry branch
-        asym_hidden1 = layers.Dense(100, activation='gelu', kernel_initializer='he_normal')(hidden2)
-        asym_hidden2 = layers.Dense(100, activation='gelu', kernel_initializer='he_normal')(asym_hidden1)
-        asym_hidden3 = layers.Dense(100, activation='gelu', kernel_initializer='he_normal')(asym_hidden2)
-        asym_hidden4 = layers.Dense(100, activation='gelu', kernel_initializer='he_normal')(asym_hidden3)
-        output3 = layers.Dense(1, name='asymmetry')(asym_hidden4)
-        # make model
-        self.model = keras.Model(inputs, outputs=[output1, output2, output3])
+    def __init__(self, use_ai=True):
+
+        if use_ai:
+            # ==== Define ML model ==========================================================
+            inputs = keras.Input(shape=(4,), name='inputs')
+            # layers
+            hidden1 = layers.Dense(100, activation='gelu', kernel_initializer='he_normal')(inputs)
+            hidden2 = layers.Dense(100, activation='gelu', kernel_initializer='he_normal')(hidden1)
+            # extinction branch
+            ext_hidden1 = layers.Dense(100, activation='gelu', kernel_initializer='he_normal')(hidden2)
+            ext_hidden2 = layers.Dense(100, activation='gelu', kernel_initializer='he_normal')(ext_hidden1)
+            ext_hidden3 = layers.Dense(100, activation='gelu', kernel_initializer='he_normal')(ext_hidden2)
+            ext_hidden4 = layers.Dense(100, activation='gelu', kernel_initializer='he_normal')(ext_hidden3)
+            output1 = layers.Dense(1, activation='softplus', name='extinction')(ext_hidden4)
+            # scattering branch
+            sca_hidden1 = layers.Dense(100, activation='gelu', kernel_initializer='he_normal')(hidden2)
+            sca_hidden2 = layers.Dense(100, activation='gelu', kernel_initializer='he_normal')(sca_hidden1)
+            sca_hidden3 = layers.Dense(100, activation='gelu', kernel_initializer='he_normal')(sca_hidden2)
+            sca_hidden4 = layers.Dense(100, activation='gelu', kernel_initializer='he_normal')(sca_hidden3)
+            output2 = layers.Dense(1, activation='softplus', name='scattering')(sca_hidden4)
+            # asymmetry branch
+            asym_hidden1 = layers.Dense(100, activation='gelu', kernel_initializer='he_normal')(hidden2)
+            asym_hidden2 = layers.Dense(100, activation='gelu', kernel_initializer='he_normal')(asym_hidden1)
+            asym_hidden3 = layers.Dense(100, activation='gelu', kernel_initializer='he_normal')(asym_hidden2)
+            asym_hidden4 = layers.Dense(100, activation='gelu', kernel_initializer='he_normal')(asym_hidden3)
+            output3 = layers.Dense(1, name='asymmetry')(asym_hidden4)
+            # make model
+            self.model = keras.Model(inputs, outputs=[output1, output2, output3])
 
         # ==== Load species data from files ==============================================================
         self.files = glob.glob(os.path.dirname(__file__) + '/opacity_files/*.refrind')
@@ -163,97 +168,10 @@ class Mieai:
             vmr[i] = vmr[i] / sum(vmr[i])
 
         # ==== Radius averaging ======================================================================================================
-        if (len(particle_size) > 1):
-            if (len(set(particle_size)) != 1):
-                # prepare outputs
-                rad_min = np.zeros_like(particle_size)
-                rad_max = np.zeros_like(particle_size)
-                mid_points = (particle_size[1:] + particle_size[:-1]) / 2
-
-                # radius minimum and maximum from midpoints
-                rad_min[1:] = mid_points
-                rad_min[0] = np.max([particle_size[0] - mid_points[0], 0])  # smallest radius value >0
-                rad_max[:-1] = mid_points
-                rad_max[-1] = particle_size[-1] + mid_points[-1]
-
-                # prepare output
-                sub_rad = np.zeros((len(particle_size) * 6))
-                i = 0 # index
-
-                for r_max, r_min in zip(rad_max, rad_min):
-                    # six radius points to average over
-                    r = r_min + ((r_max - r_min) / 6)
-                    rad_range = np.array([r, 2 * r, 3 * r, 4 * r, 5 * r, 6 * r])
-                    sub_rad[i:i + 6] = rad_range
-                    # index
-                    i += 6
-                # make volume mixing ratios the same size as particle size
-                vmr = np.repeat(vmr, 6, axis=0)
-
-            else:
-                sub_rad = np.zeros((len(particle_size) * 6))
-                i = 0
-                for rad in particle_size:
-                    sub_rad[i:i + 6] = np.linspace(rad * 0.7, rad * 1.3, 6)
-                    i += 6
-                vmr = np.repeat(vmr, 6, axis=0)
-
-        else:
-            sub_rad = particle_size
+        sub_rad, vmr = calculate_subradii(particle_size, vmr)
 
         # ==== Load data for each species from files and get refractive index =======================================================
-
-        #prepare output
-        ref_index = np.zeros((len(self.species_list), len(wavelength), 2))
-        for s, species in enumerate(self.species_list):
-
-            # ==== Load data from files =============================================================================================
-
-            # find species in files
-            for file in self.files:
-                if species in file:
-                    # get data using pandas
-                    content = pd.read_csv(file, sep=r'\s+', header=None, usecols=[1, 2, 3])
-                    # convert to array and flip vertically so wavelength increases
-                    data = np.flip(content.to_numpy(), axis=0)
-
-            # ==== Get the real(n) and imaginary (k) refractory index ===============================================================
-            # prepare output
-            if not isinstance(wavelength, np.ndarray):
-                wavelength = np.asarray([wavelength])
-
-            # loop over all wavelengths
-            for wav, wave in enumerate(wavelength):
-                # if desired wavelength is smaller than data, use the smallest wavelength data available
-                if wave < float(data[0, 0]):
-                    ref_index[s, wav, 0] = float(data[0, 1])
-                    ref_index[s, wav, 1] = float(data[0, 2])
-                    continue
-
-                # if wavelength is within range log-log interpolation for dnr, _ in enumerate(data):
-                for dnr, _ in enumerate(data):
-                    cur_wave = float(data[dnr, 0])  # current wavelength
-                    if wave < cur_wave:
-                        nlo = float(data[dnr - 1, 1])  # lower n value
-                        nhi = float(data[dnr, 1])  # higher n value
-                        klo = float(data[dnr - 1, 2])  # lower k value
-                        khi = float(data[dnr, 2])  # higher k value
-                        prev_wave = float(data[dnr - 1, 0])  # previous wavelength
-                        # calculate interpolation
-                        fac = np.log(wave / prev_wave) / np.log(cur_wave / prev_wave)
-                        ref_index[s, wav, 0] = np.exp(np.log(nlo) + fac * np.log(nhi / nlo))
-                        if klo <= 0 or khi <= 0:
-                            ref_index[s, wav, 1] = 0
-                        else:
-                            ref_index[s, wav, 1] = np.exp(np.log(klo) + fac * np.log(khi / klo))
-
-                        break
-
-                else:
-                    # if wavelength is out of range, extrapolate
-                    # non-conducting interpolation, linear decreasing k, constant n
-                    ref_index[s, wav, 0] = float(data[-1, 1])
-                    ref_index[s, wav, 1] = float(data[-1, 2]) * float(data[-1, 0]) / wave
+        ref_index = read_in_refindex(self.species_list, wavelength, self.files)
 
         # ==== Combination of all wavelengths and particle size ====================================================
         final_wavelength = np.repeat(wavelength, len(sub_rad))
@@ -261,18 +179,7 @@ class Mieai:
         final_vmr = np.tile(vmr, (len(wavelength), 1))
         final_ref_index = np.repeat(ref_index, len(sub_rad), axis=1)
 
-        # prepare outputs
-        mixed_ref_index = np.zeros(len(final_wavelength), dtype=complex)
-
-        # loop over wavelength
-        for wav, wave in enumerate(final_wavelength):
-            # dielectric constant = (n + ik)^2
-            ind_eff = (final_ref_index[:, wav, 0] + (1j * final_ref_index[:, wav, 1]))** 2
-            e_eff = (np.sum(final_vmr[wav] * (ind_eff ** (1 / 3)))) ** 3
-
-            # find mixed refractive index, real(n) and imaginary(k)
-            m_eff = np.sqrt(e_eff)
-            mixed_ref_index[wav] = complex(m_eff.real, -m_eff.imag)
+        mixed_ref_index = mixing_theory(final_wavelength, final_ref_index, final_vmr)
 
         # ==== Calculate Mie Efficiencies ====================================================================
         size_param = (2.0 * np.pi * final_sub_rad) / final_wavelength
