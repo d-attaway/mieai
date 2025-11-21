@@ -1,8 +1,0 @@
-README.md
-setup.py
-mieai/__init__.py
-mieai/mieai.py
-mieai.egg-info/PKG-INFO
-mieai.egg-info/SOURCES.txt
-mieai.egg-info/dependency_links.txt
-mieai.egg-info/top_level.txt
