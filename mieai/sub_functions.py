@@ -114,8 +114,8 @@ def calculate_subradii(particle_size, vmr):
 
             for r_max, r_min in zip(rad_max, rad_min):
                 # six radius points to average over
-                r = r_min + ((r_max - r_min) / 6)
-                rad_range = np.array([r, 2 * r, 3 * r, 4 * r, 5 * r, 6 * r])
+                r = (r_max - r_min) / 6
+                rad_range = r_min + np.array([r, 2 * r, 3 * r, 4 * r, 5 * r, 6 * r])
                 sub_rad[i:i + 6] = rad_range
                 # index
                 i += 6
