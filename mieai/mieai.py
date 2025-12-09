@@ -13,8 +13,18 @@ from .mixing_theory import mixing_theory
 class Mieai:
     def __init__(self, use_ai=True):
 
+        # ==== General preparations ======================================================================
+        # Load species data from files
+        self.files = glob.glob(os.path.dirname(__file__) + '/opacity_files/*.refrind')
+        self.available_species = [os.path.basename(path).split('/')[0][:-8] for path in self.files]
+        # save ai initialisation state
+        self.use_ai = use_ai
+
+        # ==== Prepare Neural Network ====================================================================
         if use_ai:
-            # ==== Define ML model ==========================================================
+            # define sepcies list TODO: allow for more combinations of species
+            self.species_list = ['TiO2', 'Fe', 'Mg2SiO4']
+            # ==== Define ML model =======================================================================
             inputs = keras.Input(shape=(4,), name='inputs')
             # layers
             hidden1 = layers.Dense(100, activation='gelu', kernel_initializer='he_normal')(inputs)
@@ -40,11 +50,6 @@ class Mieai:
             # make model
             self.model = keras.Model(inputs, outputs=[output1, output2, output3])
 
-        # ==== Load species data from files ==============================================================
-        self.files = glob.glob(os.path.dirname(__file__) + '/opacity_files/*.refrind')
-        self.species_list = ['TiO2', 'Fe', 'Mg2SiO4']
-
-
     def ai_efficiencies(self, wavelength, particle_size, volume_mixing_ratios):
         """
         Calculate mie coefficients using a pre-trained neural network.
@@ -65,6 +70,10 @@ class Mieai:
         """
 
         # ==== Input checks =============================================================
+
+        # check if neural network is initalised
+        if not self.use_ai:
+            raise
 
         # check inputs are correct type
         if not isinstance(wavelength, np.ndarray) and not isinstance(wavelength, (float, int)):
@@ -151,8 +160,18 @@ class Mieai:
         if isinstance(particle_size, (float, int)):
             particle_size = np.array([particle_size])
 
-        # convert volume mixing ratio to array
-        vmr = np.array(list(volume_mixing_ratios.values())).T
+        # define species list according to entries in vmr
+        species_list = list(volume_mixing_ratios.keys())
+
+        # check if all species are available
+        for spec in species_list:
+            if spec not in self.available_species:
+                raise ValueError("The species " + spec + " is not available")
+
+        # create array with vmr values
+        vmr = np.zeros((len(particle_size), len(species_list)))
+        for s, spec in enumerate(species_list):
+            vmr[:, s] = volume_mixing_ratios[spec]
 
         # check vmr is the correct input shape
         if len(set(map(len, volume_mixing_ratios.values()))) != 1:
@@ -167,13 +186,13 @@ class Mieai:
         for i in idx[0]:
             vmr[i] = vmr[i] / sum(vmr[i])
 
-        # ==== Radius averaging ======================================================================================================
+        # ==== Radius averaging =============================================================================
         sub_rad, vmr = calculate_subradii(particle_size, vmr)
 
-        # ==== Load data for each species from files and get refractive index =======================================================
-        ref_index = read_in_refindex(self.species_list, wavelength, self.files)
+        # ==== Load data for each species from files and get refractive index ===============================
+        ref_index = read_in_refindex(species_list, wavelength, self.files)
 
-        # ==== Combination of all wavelengths and particle size ====================================================
+        # ==== Combination of all wavelengths and particle size =============================================
         final_wavelength = np.repeat(wavelength, len(sub_rad))
         final_sub_rad = np.tile(sub_rad, len(wavelength))
         final_vmr = np.tile(vmr, (len(wavelength), 1))
@@ -187,6 +206,7 @@ class Mieai:
         # qe_temp = extinction, qs_temp = scattering, g_temp = asymmetry
         qe_temp, qs_temp, _, g_temp = mie.efficiencies_mx(mixed_ref_index, size_param)
 
+        # ==== Prepare outputs ==============================================================================
         if len(sub_rad) != len(particle_size):
             extinction = np.mean(qe_temp.reshape(len(particle_size) * len(wavelength), 6), axis=1).reshape(len(wavelength), len(particle_size)).T
             scattering = np.mean(qs_temp.reshape(len(particle_size) * len(wavelength), 6), axis=1).reshape(len(wavelength), len(particle_size)).T
