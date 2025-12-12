@@ -1,10 +1,12 @@
 import os
 import numpy as np
-from tensorflow import keras
-from keras import layers
 import glob
+import xarray as xr
 import miepython as mie
 import pandas as pd
+
+from time import time
+from datetime import datetime, timedelta
 
 from .sub_functions import read_in_refindex, calculate_subradii
 from .mixing_theory import mixing_theory
@@ -22,9 +24,14 @@ class Mieai:
 
         # ==== Prepare Neural Network ====================================================================
         if use_ai:
-            # define sepcies list TODO: allow for more combinations of species
+            # ==== Import tensorflow here so people can use Mieai without it
+            from tensorflow import keras
+            from keras import layers
+
+            # ==== define sepcies list TODO: allow for more combinations of species
             self.species_list = ['TiO2', 'Fe', 'Mg2SiO4']
-            # ==== Define ML model =======================================================================
+
+            # ==== Define ML model
             inputs = keras.Input(shape=(4,), name='inputs')
             # layers
             hidden1 = layers.Dense(100, activation='gelu', kernel_initializer='he_normal')(inputs)
@@ -218,3 +225,152 @@ class Mieai:
             asymmetry = g_temp.reshape(len(wavelength), len(particle_size)).T
 
         return extinction, scattering, asymmetry
+
+    def grid_efficiencies(self, wavelength, particle_size, volume_mixing_ratios, grid_file):
+        """
+        Approximate mie coefficients using mie python and LLL Approximation read in from
+        the grid_file.
+
+        Parameters
+        ----------
+        wavelength : np.ndarray or float of size N
+            Wavelength of the light [micron]
+        particle_size : np.ndarray or float of size M
+            Size of the cloud particle [micron]
+        volume_mixing_ratios : dict of np.ndarray or float of size M for each species
+            Fraction of each cloud material given as float or array
+        grid_file : string
+            Path to the grid file.
+
+        Return
+        ------
+        optical properties : np.ndarray of size (M, N)
+            extinction coefficient, scattering coefficient, and asymmetries parameter
+        """
+
+        # ==== Load grid
+        ds = xr.open_dataset(grid_file, engine="h5netcdf")
+
+        # ==== check data grid
+        for specs in ds.attrs['species']:
+            if specs not in volume_mixing_ratios:
+                raise ValueError("The selected grid '" + grid_file +
+                                 "' requires the volume mixing ratio of " + specs)
+
+        # ==== read out data
+        # define arguments for interpolation from xarray
+        args = {
+            'particle_size': particle_size,
+            'wavelength': wavelength,
+            'method': 'linear'
+        }
+        idx = np.arange(len(particle_size))
+        argus = []
+        for key in volume_mixing_ratios:
+            if key == ds.attrs['implicit_species']:
+                continue
+            args['VMR_' + key] = volume_mixing_ratios[key]
+            argus.append(idx)
+        # interpolate using the xarray routines
+        extinction = ds['qext'].interp(**args).values[idx, :, *argus]
+        scattering = ds['qsca'].interp(**args).values[idx, :, *argus]
+        asymmetry =  ds['asym'].interp(**args).values[idx, :, *argus]
+
+        extinction = np.nan_to_num(extinction)
+        scattering = np.nan_to_num(scattering)
+        asymmetry = np.nan_to_num(asymmetry)
+
+        return extinction, scattering, asymmetry
+
+    def produce_efficiency_grid(self, species, wavelengths=np.logspace(-1,1.3,200),
+                                particle_sizes=np.logspace(-4,3.1,100), vmr_data_points=20, save_file=None):
+        """
+        Calculate mie coefficient grid using mie python and LLL Approximation.
+
+        Parameters
+        ----------
+        species : List
+            Species names
+        wavelengths : np.ndarray or float of size N
+            Wavelength of the light [micron]
+        particle_sizes : np.ndarray or float of size M
+            Size of the cloud particle [micron]
+        vmr_data_points : int
+            Number of volume fraction mixing ratio points
+        save_file : str
+            Path to save the grid file
+
+        Return
+        ------
+        ds : xarray.DataSet
+            Data set containing the extinction coefficient, scattering coefficient, and asymmetries parameter
+        """
+
+        # ==== get shape of output array and prepare coordinates of dataset
+        shape = [len(particle_sizes), len(wavelengths)]  # shape of data array
+        dims = ['particle_size', 'wavelength']  # name of dimensions
+        vmrs = np.linspace(0, 1, vmr_data_points)
+        vmr = {}  # prepare standard vmr array
+        vmr_array = np.ones(len(particle_sizes))
+        coords = {
+            'particle_size': particle_sizes,
+            'wavelength': wavelengths,
+        }
+        for _, spec in enumerate(species):
+            vmr[spec] = vmr_array.copy
+        # ==== adatpitve fill in for species, last on is implicit
+        for _, spec in enumerate(species[:-1]):
+            shape.append(vmr_data_points)
+            dims.append('VMR_' + spec)
+            coords['VMR_' + spec] = np.linspace(0, 1, vmr_data_points)
+        # ==== data array
+        qext = np.zeros(shape)
+        qsca = np.zeros(shape)
+        asym = np.zeros(shape)
+
+        # ==== get indexing for vmrs
+        arrays = [np.arange(vmr_data_points) for _ in range(len(species)-1)]
+        grids = np.meshgrid(*arrays, indexing='ij')
+        vmr_index = np.stack(grids, axis=-1).reshape(-1, len(species)-1)
+
+        # ==== Fill in Grid
+        start_time = time()
+        for v, vmri in enumerate(vmr_index):
+            if v > 0:
+                dt = (time() - start_time)/v*(len(vmr_index)-v)
+                now = datetime.fromtimestamp(time())
+                eta = now + timedelta(seconds=dt)
+                eta = eta.strftime("%Y-%m-%d %H:%M:%S")
+            else:
+                eta = '--'
+            print(f'Progress: {v/len(vmr_index)*100:.1f}% (ETA: {eta})')
+            vmr_last = 0
+            vmr = {}
+            for s, spec in enumerate(species[:-1]):
+                vmr[spec] = vmrs[vmri[s]]*vmr_array.copy()
+                vmr_last += vmrs[vmri[s]]
+            vmr[species[-1]] = np.max([1 - vmr_last, 0])*vmr_array.copy()
+            line = self.efficiencies(wavelengths, particle_sizes, vmr)
+            qext[:, :, *vmri] = line[0]
+            qsca[:, :, *vmri] = line[1]
+            asym[:, :, *vmri] = line[2]
+
+        # ==== Generate dataset
+        ds = xr.Dataset(
+            data_vars={
+                'qext': (dims, qext),
+                'qsca': (dims, qsca),
+                'asym': (dims, asym),
+            },
+            coords=coords,
+            attrs={
+                'species': species,
+                'implicit_species': species[-1],
+            }
+        )
+
+        # ==== Save dataset if a save file is given
+        if save_file is not None:
+            ds.to_netcdf(save_file, engine="h5netcdf")
+
+        return ds
