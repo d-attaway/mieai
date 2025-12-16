@@ -68,6 +68,7 @@ class Mieai:
         self.default_grids = {
             "grid_m3m4.nc": ['MgSiO3', 'Mg2SiO4'],
             "grid_fem3.nc": ['Fe', 'Mg2SiO4'],
+            "grid_fem3m4.nc": ['Fe', 'MgSiO3', 'Mg2SiO4'],
         }
 
     def ai_efficiencies(self, wavelength, particle_size, volume_mixing_ratios):
@@ -269,6 +270,10 @@ class Mieai:
                 name: data for name, data in self.default_grids.items()
                 if L_set.issubset(data)
             }
+            # check if there are no matching grids
+            if not valid_datasets:
+                raise ValueError("No default grid for " + str(L_set) +
+                                 " is available. Please provide one via grid_file.")
             # Now pick the dataset with the smallest total size
             best_dataset = min(valid_datasets.items(), key=lambda item: len(item[1]))
             # open that dataset
@@ -285,25 +290,20 @@ class Mieai:
         # ==== read out data
         # define arguments for interpolation from xarray
         args = {
-            'particle_size': particle_size,
             'wavelength': wavelength,
+            "particle_size": ("points", particle_size),
             'method': 'linear'
         }
-        idx = np.arange(len(particle_size))
-        argus = []
         for key in volume_mixing_ratios:
-            if key == ds.attrs['implicit_species']:
-                continue
-            args['VMR_' + key] = volume_mixing_ratios[key]
-            argus.append(idx)
-        # interpolate using the xarray routines
-        extinction = ds['qext'].interp(**args).values[idx, :, *argus]
-        scattering = ds['qsca'].interp(**args).values[idx, :, *argus]
-        asymmetry =  ds['asym'].interp(**args).values[idx, :, *argus]
+            # skip implicit species
+            if key == ds.attrs['implicit_species']: continue
+            # add non-implicit species
+            args['VMR_' + key] = ("points", volume_mixing_ratios[key])
 
-        extinction = np.nan_to_num(extinction)
-        scattering = np.nan_to_num(scattering)
-        asymmetry = np.nan_to_num(asymmetry)
+        # interpolate from xarray
+        extinction = np.nan_to_num(ds['qext'].interp(**args))
+        scattering = np.nan_to_num(ds['qsca'].interp(**args))
+        asymmetry = np.nan_to_num(ds['asym'].interp(**args))
 
         return extinction, scattering, asymmetry
 
