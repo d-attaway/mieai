@@ -65,10 +65,15 @@ class Mieai:
         else:
             self.data_path = os.path.dirname(__file__) + '/../data'
         # default datasets
-        self.default_grids = {
+        self.default_grids_LLL = {
             "grid_m3m4.nc": ['MgSiO3', 'Mg2SiO4'],
             "grid_fem3.nc": ['Fe', 'Mg2SiO4'],
             "grid_fem3m4.nc": ['Fe', 'MgSiO3', 'Mg2SiO4'],
+            "grid_s1m3m4.nc": ['SiO2', 'MgSiO3', 'Mg2SiO4'],
+            "grid_s1fe.nc": ['SiO2', 'Fe'],
+        }
+        self.default_grids_brg = {
+            "grid_fem3m4_brg.nc": ['Fe', 'MgSiO3', 'Mg2SiO4'],
         }
 
     def ai_efficiencies(self, wavelength, particle_size, volume_mixing_ratios):
@@ -147,7 +152,7 @@ class Mieai:
 
         return qext, qsca, asym
 
-    def efficiencies(self, wavelength, particle_size, volume_mixing_ratios):
+    def efficiencies(self, wavelength, particle_size, volume_mixing_ratios, theory='LLL'):
         """
         Calculate mie coefficients using mie python and LLL Approximation.
 
@@ -159,6 +164,8 @@ class Mieai:
             Size of the cloud particle [micron]
         volume_mixing_ratios : dict of np.ndarray or float of size M for each species
             Fraction of each cloud material given as float or array
+        theory : str, optional
+            Mixing theory used, can either be 'LLL' (Default) or 'Burggeman'
 
         Return
         ------
@@ -219,7 +226,7 @@ class Mieai:
         final_vmr = np.tile(vmr, (len(wavelength), 1))
         final_ref_index = np.repeat(ref_index, len(sub_rad), axis=1)
 
-        mixed_ref_index = mixing_theory(final_wavelength, final_ref_index, final_vmr)
+        mixed_ref_index = mixing_theory(final_wavelength, final_ref_index, final_vmr, theory=theory)
 
         # ==== Calculate Mie Efficiencies ====================================================================
         size_param = (2.0 * np.pi * final_sub_rad) / final_wavelength
@@ -240,7 +247,8 @@ class Mieai:
 
         return extinction, scattering, asymmetry
 
-    def grid_efficiencies(self, wavelength, particle_size, volume_mixing_ratios, grid_file=None):
+    def grid_efficiencies(self, wavelength, particle_size, volume_mixing_ratios,
+                          theory='LLL', grid_file=None):
         """
         Approximate mie coefficients using mie python and LLL Approximation read in from
         the grid_file.
@@ -253,6 +261,8 @@ class Mieai:
             Size of the cloud particle [micron]
         volume_mixing_ratios : dict of np.ndarray or float of size M for each species
             Fraction of each cloud material given as float or array
+        theory : str, optional
+            Mixing theory used, can either be 'LLL' (Default) or 'Burggeman'
         grid_file : string
             Path to the grid file.
 
@@ -264,10 +274,17 @@ class Mieai:
 
         # ==== Load grid
         if grid_file is None:
+            # select mixing theory
+            if theory == 'LLL':
+                grid = self.default_grids_LLL
+            elif theory == 'Bruggeman':
+                grid = self.default_grids_brg
+            else:
+                raise ValueError("Unknown theory '" + theory + "'")
             # find all dataset that include all species
             L_set = set(volume_mixing_ratios.keys())
             valid_datasets = {
-                name: data for name, data in self.default_grids.items()
+                name: data for name, data in grid.items()
                 if L_set.issubset(data)
             }
             # check if there are no matching grids
@@ -277,15 +294,16 @@ class Mieai:
             # Now pick the dataset with the smallest total size
             best_dataset = min(valid_datasets.items(), key=lambda item: len(item[1]))
             # open that dataset
+            start = time()
             ds = xr.open_dataset(self.data_path + '/' + best_dataset[0], engine="h5netcdf")
         else:
+            # ==== check data grid
+            for specs in ds.attrs['species']:
+                if specs not in volume_mixing_ratios:
+                    raise ValueError("The selected grid requires the volume mixing "
+                                     "ratio of " + specs)
             ds = xr.open_dataset(grid_file, engine="h5netcdf")
 
-        # ==== check data grid
-        for specs in ds.attrs['species']:
-            if specs not in volume_mixing_ratios:
-                raise ValueError("The selected grid requires the volume mixing "
-                                 "ratio of " + specs)
 
         # ==== read out data
         # define arguments for interpolation from xarray
@@ -294,11 +312,18 @@ class Mieai:
             "particle_size": ("points", particle_size),
             'method': 'linear'
         }
-        for key in volume_mixing_ratios:
+        # loop over all species
+        for spec in ds.attrs['species']:
             # skip implicit species
-            if key == ds.attrs['implicit_species']: continue
-            # add non-implicit species
-            args['VMR_' + key] = ("points", volume_mixing_ratios[key])
+            if spec == ds.attrs['implicit_species']: continue
+            # if the species is given, use the vmr
+            if spec in volume_mixing_ratios:
+                # add non-implicit species
+                args['VMR_' + spec] = ("points", volume_mixing_ratios[spec])
+            # if the species is not given, set it to 0
+            else:
+                args['VMR_' + spec] = ("points", np.zeros(len(particle_size)))
+
 
         # interpolate from xarray
         extinction = np.nan_to_num(ds['qext'].interp(**args))
@@ -308,7 +333,8 @@ class Mieai:
         return extinction, scattering, asymmetry
 
     def produce_efficiency_grid(self, species, wavelengths=np.logspace(-1,1.3,200),
-                                particle_sizes=np.logspace(-4,3.1,100), vmr_data_points=20, save_file=None):
+                                particle_sizes=np.logspace(-4,3.1,100), vmr_data_points=20,
+                                theory='LLL', save_file=None):
         """
         Calculate mie coefficient grid using mie python and LLL Approximation.
 
@@ -322,6 +348,8 @@ class Mieai:
             Size of the cloud particle [micron]
         vmr_data_points : int
             Number of volume fraction mixing ratio points
+        theory : str, optional
+            Mixing theory used, can either be 'LLL' (Default) or 'Burggeman'
         save_file : str
             Path to save the grid file
 
@@ -375,7 +403,7 @@ class Mieai:
                 vmr[spec] = vmrs[vmri[s]]*vmr_array.copy()
                 vmr_last += vmrs[vmri[s]]
             vmr[species[-1]] = np.max([1 - vmr_last, 0])*vmr_array.copy()
-            line = self.efficiencies(wavelengths, particle_sizes, vmr)
+            line = self.efficiencies(wavelengths, particle_sizes, vmr, theory=theory)
             qext[:, :, *vmri] = line[0]
             qsca[:, :, *vmri] = line[1]
             asym[:, :, *vmri] = line[2]
