@@ -79,16 +79,20 @@ class Mieai:
         else:
             self.data_path = os.path.dirname(__file__) + '/../data'
         # default datasets
-        self.default_grids_LLL = {
-            "grid_m3m4.nc": ['MgSiO3', 'Mg2SiO4'],
-            "grid_fem4.nc": ['Fe', 'Mg2SiO4'],
-            "grid_fem3.nc": ['Fe', 'MgSiO3'],
-            "grid_fem3m4.nc": ['Fe', 'MgSiO3', 'Mg2SiO4'],
-            "grid_s1m3m4.nc": ['SiO2', 'MgSiO3', 'Mg2SiO4'],
-            "grid_s1fe.nc": ['SiO2', 'Fe'],
-        }
+        self.default_grids_LLL = {}
+        lll_grids = [
+            ("grid_m3m4.nc", ['MgSiO3', 'Mg2SiO4']),
+            ("grid_fem3.nc", ['Fe', 'MgSiO3']),
+            ("grid_fem4.nc", ['Fe', 'Mg2SiO4']),
+            ("grid_fem3m4.nc", ['Fe', 'MgSiO3', 'Mg2SiO4']),
+            ("grid_s1m3m4.nc", ['SiO2', 'MgSiO3', 'Mg2SiO4']),
+            ("grid_s1fe.nc", ['SiO2', 'Fe']),
+        ]
+        for name, species in lll_grids:
+            ds = xr.open_dataset(self.data_path + '/' + name, engine="h5netcdf")
+            self.default_grids_LLL[name] = {'species': species, 'ds': ds}
+            ds.close()
         self.default_grids_brg = {
-            "grid_fem3m4_brg.nc": ['Fe', 'MgSiO3', 'Mg2SiO4'],
         }
 
     def ai_efficiencies(self, wavelength, particle_size, volume_mixing_ratios):
@@ -300,8 +304,8 @@ class Mieai:
             # find all dataset that include all species
             L_set = set(volume_mixing_ratios.keys())
             valid_datasets = {
-                name: data for name, data in grid.items()
-                if L_set.issubset(data)
+                name: data['species'] for name, data in grid.items()
+                if L_set.issubset(data['species'])
             }
             # check if there are no matching grids
             if not valid_datasets:
@@ -310,8 +314,7 @@ class Mieai:
             # Now pick the dataset with the smallest total size
             best_dataset = min(valid_datasets.items(), key=lambda item: len(item[1]))
             # open that dataset
-            start = time()
-            ds = xr.open_dataset(self.data_path + '/' + best_dataset[0], engine="h5netcdf")
+            ds = grid[best_dataset[0]]['ds']
         else:
             # ==== check data grid
             for specs in ds.attrs['species']:
