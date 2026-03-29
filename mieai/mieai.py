@@ -13,7 +13,19 @@ from .mixing_theory import mixing_theory
 
 
 class Mieai:
-    def __init__(self, use_ai=True, default_data_location=None):
+    def __init__(self, use_ai=True, default_data_location=None, mute=True):
+        """
+        Constructor
+
+        Parameters
+        ----------
+        use_ai : bool
+            If False, AI will be disabled. This allows to use MieAi without installing tensorflow.
+        default_data_location : str, optional
+            Location of opacity data. If none, MieAi defaults are used.
+        mute : bool, optional
+            If True, MieAi will produce no diagnostic outputs and runs quietly.
+        """
 
         # ==== General preparations ======================================================================
         # Load species data from files
@@ -21,6 +33,8 @@ class Mieai:
         self.available_species = [os.path.basename(path).split('/')[0][:-8] for path in self.files]
         # save ai initialisation state
         self.use_ai = use_ai
+        # save mute preference
+        self.mute = mute
 
         # ==== Prepare Neural Network ====================================================================
         if use_ai:
@@ -67,7 +81,8 @@ class Mieai:
         # default datasets
         self.default_grids_LLL = {
             "grid_m3m4.nc": ['MgSiO3', 'Mg2SiO4'],
-            "grid_fem3.nc": ['Fe', 'Mg2SiO4'],
+            "grid_fem4.nc": ['Fe', 'Mg2SiO4'],
+            "grid_fem3.nc": ['Fe', 'MgSiO3'],
             "grid_fem3m4.nc": ['Fe', 'MgSiO3', 'Mg2SiO4'],
             "grid_s1m3m4.nc": ['SiO2', 'MgSiO3', 'Mg2SiO4'],
             "grid_s1fe.nc": ['SiO2', 'Fe'],
@@ -122,11 +137,11 @@ class Mieai:
         #adjust volume mixing ratio
         vmr = np.array(list(volume_mixing_ratios.values())).T
 
-        if len(set(map(len, volume_mixing_ratios.values()))) != 1:
+        if len(set(map(len, volume_mixing_ratios.values()))) != 1 and not self.mute:
             print('Volume mixing ratios must have same shape')
 
         vmr_sum = np.sum(vmr, axis=1)
-        if any(vmr_sum != 1):
+        if any(vmr_sum != 1) and not self.mute:
             print('Volume mixing ratios do not add up to 1. The ratios have been renormalized.')
         idx = np.asarray(np.where(vmr_sum != 1))
         for i in idx[0]:
@@ -175,12 +190,13 @@ class Mieai:
         # ==== Prepare inputs =============================================================
 
         # check inputs are correct type
-        if not isinstance(wavelength, np.ndarray) and not isinstance(wavelength, (float, int)):
-            print('Wavelength must be of type np.ndarray or float')
-        if not isinstance(particle_size, np.ndarray) and not isinstance(particle_size, (float, int)):
-            print('Particle size must be of type np.ndarray or float')
-        if not isinstance(volume_mixing_ratios, dict) and not isinstance(volume_mixing_ratios, (float, int)):
-            print('Volume mixing ratio must be of type dict or float')
+        if not self.mute:
+            if not isinstance(wavelength, np.ndarray) and not isinstance(wavelength, (float, int)):
+                print('Wavelength must be of type np.ndarray or float')
+            if not isinstance(particle_size, np.ndarray) and not isinstance(particle_size, (float, int)):
+                print('Particle size must be of type np.ndarray or float')
+            if not isinstance(volume_mixing_ratios, dict) and not isinstance(volume_mixing_ratios, (float, int)):
+                print('Volume mixing ratio must be of type dict or float')
 
         # convert floats to arrays
         if isinstance(wavelength, (float, int)):
@@ -202,13 +218,13 @@ class Mieai:
             vmr[:, s] = volume_mixing_ratios[spec]
 
         # check vmr is the correct input shape
-        if len(set(map(len, volume_mixing_ratios.values()))) != 1:
+        if len(set(map(len, volume_mixing_ratios.values()))) != 1 and not self.mute:
             print('Volume mixing ratios must have same shape')
         if len(particle_size) != len(vmr):
             print('Particle size and volume mixing ratio must have same shape')
 
         vmr_sum = np.sum(vmr, axis=1)
-        if any(vmr_sum != 1):
+        if any(vmr_sum != 1) and not self.mute:
             print('Volume mixing ratios do not add up to 1. The ratios have been renormalized.')
         idx = np.asarray(np.where(vmr_sum != 1))
         for i in idx[0]:
