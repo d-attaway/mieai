@@ -89,9 +89,10 @@ class Mieai:
             ("grid_s1fe.nc", ['SiO2', 'Fe']),
         ]
         for name, species in lll_grids:
-            ds = xr.open_dataset(self.data_path + '/' + name, engine="h5netcdf")
-            self.default_grids_LLL[name] = {'species': species, 'ds': ds}
-            ds.close()
+            if os.path.isfile(self.data_path + '/' + name):
+                ds = xr.open_dataset(self.data_path + '/' + name, engine="h5netcdf")
+                self.default_grids_LLL[name] = {'species': species, 'ds': ds}
+                ds.close()
         self.default_grids_brg = {
         }
 
