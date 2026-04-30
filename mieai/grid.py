@@ -3,9 +3,11 @@ import os
 import numpy as np
 import xarray as xr
 from glob import glob
+from time import time
+from datetime import datetime, timedelta
 
 def grid_efficiencies(self, wavelength, particle_size, volume_mixing_ratios,
-                      theory='LLL', grid_file=None):
+                      grid_file=None):
     """
     Approximate mie coefficients using mie python and LLL Approximation read in from
     the grid_file.
@@ -18,8 +20,6 @@ def grid_efficiencies(self, wavelength, particle_size, volume_mixing_ratios,
         Size of the cloud particle [micron]
     volume_mixing_ratios : dict of np.ndarray or float of size M for each species
         Fraction of each cloud material given as float or array
-    theory : str, optional
-        Mixing theory used, can either be 'LLL' (Default) or 'Burggeman'
     grid_file : string
         Path to the grid file.
 
@@ -204,7 +204,7 @@ def load_grid_efficiency(self, file_name=None):
             ds = xr.open_dataset(grid_file, engine="h5netcdf")
             self.default_grids[grid_file] = {'species': ds.attrs['species'], 'ds': ds}
             if not self.mute:
-                print('[INFO] Added grid for', ds.attrs['species'], f'from {round(ds['wavelength'].values[0], 2)} to {round(ds['wavelength'].values[-1], 2)} micron.')
+                print('[INFO] Added grid for', ds.attrs['species'], f"from {round(ds['wavelength'].values[0], 2)} to {round(ds['wavelength'].values[-1], 2)} micron.")
             ds.close()
         except:
             # this error only rises if the file loaded is not what was expected.

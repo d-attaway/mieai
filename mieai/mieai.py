@@ -15,7 +15,7 @@ from .mixing_theory import mixing_theory
 class Mieai:
 
     # ==== Import functions from sub-files ========================================================
-    from .grid import grid_efficiencies, produce_efficiency_grid, load_grid_efficiencies
+    from .grid import grid_efficiencies, produce_efficiency_grid, load_grid_efficiency
 
     def __init__(self, use_ai=True, default_data_location=None, mute=True):
         """
@@ -86,7 +86,7 @@ class Mieai:
         # ==== Load predetermined grid dataset
         # default datasets
         self.default_grids = {}
-        self.load_grid_efficiencies()
+        self.load_grid_efficiency()
 
     def ai_efficiencies(self, wavelength, particle_size, volume_mixing_ratios):
         """
