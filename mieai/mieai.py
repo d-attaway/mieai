@@ -4,6 +4,7 @@ import glob
 import xarray as xr
 import miepython as mie
 
+from tensorflow.keras.models import load_model # figure out how to load in with use_ai?
 from time import time
 from datetime import datetime, timedelta
 
@@ -49,7 +50,7 @@ class Mieai:
             "MODEL2": ['MgSiO3', 'Fe', 'TiO2'],
             "MODEL3": ['Mg2SiO4', 'MgSiO3', 'SiO2'],
             "MODEL4": ['MgSiO3', 'Fe', 'SiO2'],
-        }
+        } # move with use_ai?
 
         # ==== List of default datasets
         # user input data location
