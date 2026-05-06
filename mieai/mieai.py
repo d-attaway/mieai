@@ -46,10 +46,10 @@ class Mieai:
             from tensorflow.keras.models import load_model
 
         self.model_names = {
-            "MODEL1": ['Mg2SiO4', 'Fe', 'TiO2'],
-            "MODEL2": ['MgSiO3', 'Fe', 'TiO2'],
-            "MODEL3": ['Mg2SiO4', 'MgSiO3', 'SiO2'],
-            "MODEL4": ['MgSiO3', 'Fe', 'SiO2'],
+            "MODEL1": ['TiO2', 'Fe', 'Mg2SiO4'],
+            "MODEL2": ['TiO2', 'Fe', 'MgSiO3'],
+            "MODEL3": ['SiO2', 'MgSiO3', 'Mg2SiO4'],
+            "MODEL4": ['SiO2', 'MgSiO3', 'Fe'],
         } # move with use_ai?
 
         # ==== List of default datasets
@@ -127,8 +127,9 @@ class Mieai:
         final_wavelength = np.repeat(wavelength, len(particle_size))
         final_particle_size = np.tile(particle_size, len(wavelength))
 
-        #adjust volume mixing ratio
-        vmr = np.array(list(volume_mixing_ratios.values())).T
+        # reorder volume mixing ratios and turn into array
+        vmr_arr = {key: volume_mixing_ratios[key] for key in best_dataset[1]}
+        vmr = np.array(list(vmr_arr.values())).T
 
         if len(set(map(len, volume_mixing_ratios.values()))) != 1 and not self.mute:
             print('Volume mixing ratios must have same shape')
