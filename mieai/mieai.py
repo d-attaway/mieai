@@ -3,12 +3,12 @@ import numpy as np
 import glob
 import xarray as xr
 import miepython as mie
-import pandas as pd
 
+from tensorflow.keras.models import load_model
 from time import time
 from datetime import datetime, timedelta
 
-from .sub_functions import read_in_refindex, calculate_subradii
+from .sub_functions import read_in_refindex, calculate_subradii, get_model_info
 from .mixing_theory import mixing_theory
 
 
@@ -31,31 +31,33 @@ class Mieai:
             # ==== define sepcies list TODO: allow for more combinations of species
             self.species_list = ['TiO2', 'Fe', 'Mg2SiO4']
 
-            # ==== Define ML model
-            inputs = keras.Input(shape=(4,), name='inputs')
-            # layers
-            hidden1 = layers.Dense(100, activation='gelu', kernel_initializer='he_normal')(inputs)
-            hidden2 = layers.Dense(100, activation='gelu', kernel_initializer='he_normal')(hidden1)
-            # extinction branch
-            ext_hidden1 = layers.Dense(100, activation='gelu', kernel_initializer='he_normal')(hidden2)
-            ext_hidden2 = layers.Dense(100, activation='gelu', kernel_initializer='he_normal')(ext_hidden1)
-            ext_hidden3 = layers.Dense(100, activation='gelu', kernel_initializer='he_normal')(ext_hidden2)
-            ext_hidden4 = layers.Dense(100, activation='gelu', kernel_initializer='he_normal')(ext_hidden3)
-            output1 = layers.Dense(1, activation='softplus', name='extinction')(ext_hidden4)
-            # scattering branch
-            sca_hidden1 = layers.Dense(100, activation='gelu', kernel_initializer='he_normal')(hidden2)
-            sca_hidden2 = layers.Dense(100, activation='gelu', kernel_initializer='he_normal')(sca_hidden1)
-            sca_hidden3 = layers.Dense(100, activation='gelu', kernel_initializer='he_normal')(sca_hidden2)
-            sca_hidden4 = layers.Dense(100, activation='gelu', kernel_initializer='he_normal')(sca_hidden3)
-            output2 = layers.Dense(1, activation='softplus', name='scattering')(sca_hidden4)
-            # asymmetry branch
-            asym_hidden1 = layers.Dense(100, activation='gelu', kernel_initializer='he_normal')(hidden2)
-            asym_hidden2 = layers.Dense(100, activation='gelu', kernel_initializer='he_normal')(asym_hidden1)
-            asym_hidden3 = layers.Dense(100, activation='gelu', kernel_initializer='he_normal')(asym_hidden2)
-            asym_hidden4 = layers.Dense(100, activation='gelu', kernel_initializer='he_normal')(asym_hidden3)
-            output3 = layers.Dense(1, name='asymmetry')(asym_hidden4)
-            # make model
-            self.model = keras.Model(inputs, outputs=[output1, output2, output3])
+            # not needed if using keras files
+
+            # # ==== Define ML model
+            # inputs = keras.Input(shape=(4,), name='inputs')
+            # # layers
+            # hidden1 = layers.Dense(100, activation='gelu', kernel_initializer='he_normal')(inputs)
+            # hidden2 = layers.Dense(100, activation='gelu', kernel_initializer='he_normal')(hidden1)
+            # # extinction branch
+            # ext_hidden1 = layers.Dense(100, activation='gelu', kernel_initializer='he_normal')(hidden2)
+            # ext_hidden2 = layers.Dense(100, activation='gelu', kernel_initializer='he_normal')(ext_hidden1)
+            # ext_hidden3 = layers.Dense(100, activation='gelu', kernel_initializer='he_normal')(ext_hidden2)
+            # ext_hidden4 = layers.Dense(100, activation='gelu', kernel_initializer='he_normal')(ext_hidden3)
+            # output1 = layers.Dense(1, activation='softplus', name='extinction')(ext_hidden4)
+            # # scattering branch
+            # sca_hidden1 = layers.Dense(100, activation='gelu', kernel_initializer='he_normal')(hidden2)
+            # sca_hidden2 = layers.Dense(100, activation='gelu', kernel_initializer='he_normal')(sca_hidden1)
+            # sca_hidden3 = layers.Dense(100, activation='gelu', kernel_initializer='he_normal')(sca_hidden2)
+            # sca_hidden4 = layers.Dense(100, activation='gelu', kernel_initializer='he_normal')(sca_hidden3)
+            # output2 = layers.Dense(1, activation='softplus', name='scattering')(sca_hidden4)
+            # # asymmetry branch
+            # asym_hidden1 = layers.Dense(100, activation='gelu', kernel_initializer='he_normal')(hidden2)
+            # asym_hidden2 = layers.Dense(100, activation='gelu', kernel_initializer='he_normal')(asym_hidden1)
+            # asym_hidden3 = layers.Dense(100, activation='gelu', kernel_initializer='he_normal')(asym_hidden2)
+            # asym_hidden4 = layers.Dense(100, activation='gelu', kernel_initializer='he_normal')(asym_hidden3)
+            # output3 = layers.Dense(1, name='asymmetry')(asym_hidden4)
+            # # make model
+            # self.model = keras.Model(inputs, outputs=[output1, output2, output3])
 
         # ==== List of default datasets
         # user input data location
@@ -69,6 +71,12 @@ class Mieai:
             "grid_m3m4.nc": ['MgSiO3', 'Mg2SiO4'],
             "grid_fem3.nc": ['Fe', 'Mg2SiO4'],
             "grid_fem3m4.nc": ['Fe', 'MgSiO3', 'Mg2SiO4'],
+        }
+        self.model_names = {
+            "MODEL1": ['Mg2SiO4', 'Fe', 'TiO2'],
+            "MODEL2": ['MgSiO3', 'Fe', 'TiO2'],
+            "MODEL3": ['Mg2SiO4', 'MgSiO3', 'SiO2'],
+            "MODEL4": ['MgSiO3', 'Fe', 'SiO2'],
         }
 
     def ai_efficiencies(self, wavelength, particle_size, volume_mixing_ratios):
@@ -90,11 +98,29 @@ class Mieai:
             extinction coefficient, scattering coefficient, and asymmetries parameter
         """
 
-        # ==== Input checks =============================================================
+        # ==== network intialization & retrieval ==================================================
 
         # check if neural network is initalised
         if not self.use_ai:
             raise
+
+        # find all models that include all species
+        L_set = set(volume_mixing_ratios.keys())
+        valid_models = {
+            name: data for name, data in self.model_names.items()
+            if L_set.issubset(data)
+        }
+        # check if there are no matching models
+        if not valid_models:
+            raise ValueError("No network for " + str(L_set) + " is available.")
+
+        # Now pick the model with the smallest total size
+        best_dataset = min(valid_models.items(), key=lambda item: len(item[1]))
+
+        # get files for the model
+        model_files, low_wave, high_wave = get_model_info(best_dataset[0])
+
+        # ==== Input checks =============================================================
 
         # check inputs are correct type
         if not isinstance(wavelength, np.ndarray) and not isinstance(wavelength, (float, int)):
@@ -131,19 +157,50 @@ class Mieai:
         final_vmr = np.tile(vmr, (len(wavelength), 1))
 
         # ==== Prepare model ============================================================
-        # ==== TODO: find a way to quickly search for the right model
-        self.model.load_weights(os.path.dirname(__file__) + '/models/model47.weights.h5')
-
+        # # ==== TODO: find a way to quickly search for the right model
+        # self.model.load_weights(os.path.dirname(__file__) + '/models/model47.weights.h5')
+        #
         # ==== define input array TODO: generalize this for all models
         inputs = np.stack((np.asarray(np.log10(final_wavelength)),
                            np.asarray(np.log10(final_particle_size)),
                            np.asarray(final_vmr[:,0]),
                            np.asarray(final_vmr[:,1])), axis=1)
+        #
+        # outputs = self.model.predict(inputs)
 
-        outputs = self.model.predict(inputs)
-        qext = outputs[0][:, 0].reshape((len(wavelength), len(particle_size)))
-        qsca = outputs[1][:, 0].reshape((len(wavelength), len(particle_size)))
-        asym = outputs[2][:, 0].reshape((len(wavelength), len(particle_size)))
+        low_model = load_model(os.path.dirname(__file__) + '/models/' + model_files[0])
+        mid_model = load_model(os.path.dirname(__file__) + '/models/' + model_files[1])
+        high_model = load_model(os.path.dirname(__file__) + '/models/' + model_files[2])
+
+        # outputs = np.zeros((len(inputs), 3))
+        # for i, item in enumerate(inputs):
+        #     if item[0] <= np.log10(low_wave):
+        #         outputs[i,:] = low_model.predict(item)
+        #
+        #     if (item[0] > np.log10(low_wave)) & (item[0] < np.log10(high_wave)):
+        #         outputs[i,:] = mid_model.predict(item)
+        #
+        #     if item[0] >= np.log10(high_wave):
+        #         outputs[i,:] = high_model.predict(item)
+        #
+        # qext = outputs[0][:, 0].reshape((len(wavelength), len(particle_size)))
+        # qsca = outputs[1][:, 0].reshape((len(wavelength), len(particle_size)))
+        # asym = outputs[2][:, 0].reshape((len(wavelength), len(particle_size)))
+
+        # # OR could do this:
+
+        qext = np.zeros((len(wavelength), len(particle_size)))
+        qsca = np.zeros((len(wavelength), len(particle_size)))
+        asym = np.zeros((len(wavelength), len(particle_size)))
+
+        low_mask = inputs[0] <= low_wave
+        mid_mask = (inputs[0] > low_wave) & (inputs[0] < high_wave)
+        high_mask = inputs[0] >= high_wave
+
+        # ==== TODO: reshape outputs
+        qext[low_mask], qsca[low_mask], asym[low_mask] = low_model.predict(inputs[low_mask])
+        qext[mid_mask], qsca[mid_mask], asym[mid_mask] = mid_model.predict(inputs[mid_mask])
+        qext[high_mask], qsca[high_mask], asym[high_mask] = high_model.predict(inputs[high_mask])
 
         return qext, qsca, asym
 

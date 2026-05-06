@@ -2,6 +2,7 @@
 
 import pandas as pd
 import numpy as np
+import yaml
 
 def read_in_refindex(species, wavelength, files):
     """
@@ -134,3 +135,28 @@ def calculate_subradii(particle_size, vmr):
         sub_rad = particle_size
 
     return sub_rad, vmr
+
+def get_model_info(model_name):
+    '''
+    Get neural network files and information.
+
+    Parameters
+    ----------
+    model_name: string
+
+    Returns
+    -------
+    List of files that correspond to the network.
+
+    '''
+    with open('config.yaml', 'r') as f:
+        config = yaml.safe_load(f)
+
+    try:
+        field_data = config[model_name]
+        files = field_data['files']
+        low_wave = field_data['low_wave']
+        high_wave = field_data['high_wave']
+        return files, low_wave, high_wave
+    except KeyError:
+        raise ValueError(f"Network '{model_name}' not found in config")

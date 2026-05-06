@@ -1,0 +1,62 @@
+MODEL1:
+
+  low_wave: 1
+  high_wave: 50
+
+  files:
+    - 'vmodel100rad_model11_low.keras'
+    - 'vmodel100rad_model11_mid.keras'
+    - 'vmodel100rad_model11_high.keras'
+#
+#  model_structure:
+#    - # inputs
+#    - inputs = keras.Input(shape=(4,), name='inputs')
+#
+#    - # layers
+#    - hidden1 = layers.Dense(100, activation='gelu')(inputs)
+#    - hidden2 = layers.Dense(100, activation='gelu')(hidden1)
+#    - hidden3 = layers.Dense(100, activation='gelu')(hidden2)
+#
+#    - # ext layer
+#    - ext1 = layers.Dense(100, activation='gelu')(hidden3)
+#
+#    - # ext layer
+#    - sca1 = layers.Dense(100, activation='gelu')(hidden3)
+#
+#    - # ext layer
+#    - asym1 = layers.Dense(100, activation='gelu')(hidden3)
+#
+#    - # outputs
+#    - output1 = layers.Dense(1, name='extinction')(ext1)
+#    - output2 = layers.Dense(1, name='scattering')(sca1)
+#    - output3 = layers.Dense(1, name='asymmetry')(asym1)
+
+MODEL2:
+
+  low_wave: 1
+  high_wave: 50
+
+  files:
+    - 'vmodelens_model2_low.keras'
+    - 'vmodelens_model2_mid.keras'
+    - 'vmodelens_model2_high.keras'
+
+MODEL3:
+
+  low_wave: 1
+  high_wave: 50
+
+  files:
+    - 'vmodelsil_model1_low.keras'
+    - 'vmodelsil_model1_mid.keras'
+    - 'vmodelsil_model1_high.keras'
+
+MODEL4:
+
+  low_wave: 1
+  high_wave: 50
+
+  files:
+    - 'vmodelmeteor_model1_low.keras'
+    - 'vmodelmeteor_model1_mid.keras'
+    - 'vmodelmeteor_model1_high.keras'
