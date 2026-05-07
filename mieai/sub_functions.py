@@ -1,5 +1,6 @@
 """ General functionalities """
 
+import os
 import pandas as pd
 import numpy as np
 import yaml
@@ -149,7 +150,8 @@ def get_model_info(model_name):
     List of files that correspond to the network.
 
     '''
-    with open('config.yaml', 'r') as f:
+    config_yaml = os.path.dirname(__file__) + '/config.yaml'
+    with open(config_yaml, 'r') as f:
         config = yaml.safe_load(f)
 
     try:
