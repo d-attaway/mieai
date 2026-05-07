@@ -1,7 +1,7 @@
 MODEL1:
 
   low_wave: 1
-  high_wave: 50
+  high_wave: 100
 
   files:
     - 'vmodel100rad_model11_low.keras'
@@ -11,7 +11,7 @@ MODEL1:
 MODEL2:
 
   low_wave: 1
-  high_wave: 50
+  high_wave: 100
 
   files:
     - 'vmodelens_model2_low.keras'
@@ -21,7 +21,7 @@ MODEL2:
 MODEL3:
 
   low_wave: 1
-  high_wave: 50
+  high_wave: 100
 
   files:
     - 'vmodelsil_model1_low.keras'
@@ -31,9 +31,9 @@ MODEL3:
 MODEL4:
 
   low_wave: 1
-  high_wave: 50
+  high_wave: 100
 
   files:
-    - 'vmodelmeteor_model1_low.keras'
-    - 'vmodelmeteor_model1_mid.keras'
-    - 'vmodelmeteor_model1_high.keras'
+    - 'vmodelmeteor_softplus_model_low.keras'
+    - 'vmodelmeteor_softplus_model_mid.keras'
+    - 'vmodelmeteor_softplus_model_high.keras'
