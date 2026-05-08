@@ -105,7 +105,7 @@ class Mieai:
         best_dataset = min(valid_models.items(), key=lambda item: len(item[1]))
 
         # get files for the model
-        model_files, low_wave, high_wave = get_model_info(best_dataset[0])
+        model_files, low_wave, high_wave, scale = get_model_info(best_dataset[0])
 
         # ==== Input checks =============================================================
 
@@ -172,9 +172,15 @@ class Mieai:
         extinction[high_mask], scattering[high_mask], asymmetry[high_mask] = high_model.predict(inputs[high_mask])
 
         # reshape outputs
-        qext = extinction[:, 0].reshape((len(wavelength), len(particle_size)))
-        qsca = scattering[:, 0].reshape((len(wavelength), len(particle_size)))
-        asym = asymmetry[:, 0].reshape((len(wavelength), len(particle_size)))
+        if scale == 'norm':
+            qext = extinction[:, 0].reshape((len(wavelength), len(particle_size)))
+            qsca = scattering[:, 0].reshape((len(wavelength), len(particle_size)))
+            asym = asymmetry[:, 0].reshape((len(wavelength), len(particle_size)))
+
+        if scale == 'log':
+            qext = 10**extinction[:, 0].reshape((len(wavelength), len(particle_size)))
+            qsca = 10**scattering[:, 0].reshape((len(wavelength), len(particle_size)))
+            asym = asymmetry[:, 0].reshape((len(wavelength), len(particle_size)))
 
         return qext, qsca, asym
 
