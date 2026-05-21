@@ -1,7 +1,7 @@
 MODEL1:
 
   low_wave: 1
-  high_wave: 50
+  high_wave: 100
   scale: 'norm'
 
   files:
@@ -12,7 +12,7 @@ MODEL1:
 MODEL2:
 
   low_wave: 1
-  high_wave: 50
+  high_wave: 100
   scale: 'norm'
 
   files:
@@ -23,7 +23,7 @@ MODEL2:
 MODEL3:
 
   low_wave: 1
-  high_wave: 50
+  high_wave: 100
   scale: 'norm'
 
   files:
@@ -34,7 +34,7 @@ MODEL3:
 MODEL4:
 
   low_wave: 1
-  high_wave: 50
+  high_wave: 100
   scale: 'log'
 
   files:
