@@ -1,3 +1,6 @@
+""" Calculating different mixing theories for effective refindex """
+# pylint: disable=C0415,R0902,R0912,R0914,R0915
+
 import numpy as np
 from scipy.optimize import minimize
 
@@ -25,7 +28,7 @@ def mixing_theory(wavelength, ref_index, vmr, theory='LLL'):
     mixed_ref_index = np.zeros(len(wavelength), dtype=complex)
 
     # loop over wavelength
-    for wav, wave in enumerate(wavelength):
+    for wav, _ in enumerate(wavelength):
         if theory == 'LLL':
             # dielectric constant = (n + ik)^2
             ind_eff = (ref_index[:, wav, 0] + (1j * ref_index[:, wav, 1])) ** 2
@@ -40,10 +43,14 @@ def mixing_theory(wavelength, ref_index, vmr, theory='LLL'):
             m_eff_0 = np.asarray([np.sum(vmr[wav] * ref_index[:, wav, 0]),
                                   np.sum(vmr[wav] * ref_index[:, wav, 1])])
             # define constraints
-            def con_min_n(nk, n_min): return nk[0] - n_min
-            def con_max_n(nk, n_max): return n_max - nk[0]
-            def con_min_k(nk, k_min): return nk[1] - k_min
-            def con_max_k(nk, k_max): return k_max - nk[1]
+            def con_min_n(nk, n_min):
+                return nk[0] - n_min
+            def con_max_n(nk, n_max):
+                return n_max - nk[0]
+            def con_min_k(nk, k_min):
+                return nk[1] - k_min
+            def con_max_k(nk, k_max):
+                return k_max - nk[1]
             con = [{'type': 'ineq', 'fun': con_min_n, 'args': [np.min(ref_index[:, wav, 0])]},
                    {'type': 'ineq', 'fun': con_max_n, 'args': [np.max(ref_index[:, wav, 0])]},
                    {'type': 'ineq', 'fun': con_min_k, 'args': [np.min(ref_index[:, wav, 1])]},
@@ -51,14 +58,15 @@ def mixing_theory(wavelength, ref_index, vmr, theory='LLL'):
                    ]
 
             # calculate effective medium theory with Bruggemann minimization
-            work = [vmr[wav], ref_index[:, wav, 0], ref_index[:, wav, 1]]
             resul = minimize(bruggeman_func, m_eff_0, args=[],
                              constraints=con, method='SLSQP')
             m_eff = resul.x
 
             # here, negative values can still occure due to tollarances. Prevent these.
-            if m_eff[0] < 0: m_eff[0] = 0
-            if m_eff[1] < 0: m_eff[1] = 0
+            if m_eff[0] < 0:
+                m_eff[0] = 0
+            if m_eff[1] < 0:
+                m_eff[1] = 0
 
             # check if it worked
             if not resul.success:
@@ -105,4 +113,3 @@ def bruggeman_func(eff, work):
         sol += work[i, 0]*(e_i-e_e)/(e_i+2*e_e)
 
     return abs(sol)#sol.real**2 + sol.imag**2
-

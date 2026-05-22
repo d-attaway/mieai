@@ -1,17 +1,22 @@
-import os
-import numpy as np
-import glob
-import xarray as xr
-import miepython as mie
+""" MieAI class """
+# pylint: disable=C0415,R0902,R0912,R0914,R0915
 
-from time import time
-from datetime import datetime, timedelta
+import os
+import glob
+import numpy as np
+import miepython as mie
 
 from .sub_functions import read_in_refindex, calculate_subradii, get_model_info
 from .mixing_theory import mixing_theory
 
 
 class Mieai:
+    """
+    MieAI class to calcualte mie opacities using one of three methods:
+    - efficiencies: Use LLL and miepython and perform full calcu
+    - ai_efficiencies
+    - grid_efficiencies
+    """
 
     # ==== Import functions from sub-files ========================================================
     from .grid import grid_efficiencies, produce_efficiency_grid, load_grid_efficiency
@@ -25,14 +30,15 @@ class Mieai:
         use_ai : bool
             If False, AI will be disabled. This allows to use MieAi without installing tensorflow.
         load_ai_model : str
-            Which AI model to load. Defualt is 'all', which loads all models. User can input model names to load a specific model.
+            Which AI model to load. Defualt is 'all', which loads all models. User can input
+            model names to load a specific model.
         default_data_location : str, optional
             Location of opacity data. If none, MieAi defaults are used.
         mute : bool, optional
             If True, MieAi will produce no diagnostic outputs and runs quietly.
         """
 
-        # ==== General preparations ======================================================================
+        # ==== General preparations ===============================================================
         # Load species data from files
         self.files = glob.glob(os.path.dirname(__file__) + '/opacity_files/*.refrind')
         self.available_species = [os.path.basename(path).split('/')[0][:-8] for path in self.files]
@@ -42,7 +48,7 @@ class Mieai:
         # save mute preference
         self.mute = mute
 
-        # ==== Prepare Neural Network ====================================================================
+        # ==== Prepare Neural Network =============================================================
         if use_ai:
             # ==== Import tensorflow here so people can use Mieai without it
             from tensorflow.keras.models import load_model
@@ -67,24 +73,38 @@ class Mieai:
                 self.high_models = {}
 
                 for model in self.model_names.keys():
-                    model_files, self.low_waves[model], self.high_waves[model], self.scales[model] = get_model_info(model)
+                    (model_files, self.low_waves[model], self.high_waves[model],
+                     self.scales[model]) = get_model_info(model)
 
                     # load all models for each mixture
-                    self.low_models[model] = load_model(os.path.dirname(__file__) + '/models/' + model_files[0])
-                    self.mid_models[model] = load_model(os.path.dirname(__file__) + '/models/' + model_files[1])
-                    self.high_models[model] = load_model(os.path.dirname(__file__) + '/models/' + model_files[2])
+                    self.low_models[model] = load_model(
+                        os.path.dirname(__file__) + '/models/' + model_files[0]
+                    )
+                    self.mid_models[model] = load_model(
+                        os.path.dirname(__file__) + '/models/' + model_files[1]
+                    )
+                    self.high_models[model] = load_model(
+                        os.path.dirname(__file__) + '/models/' + model_files[2]
+                    )
 
             else:
                 # get info for the specified model
-                model_files, self.low_wave, self.high_wave, self.scale = get_model_info(load_ai_model)
+                model_files, self.low_wave, self.high_wave, self.scale \
+                    = get_model_info(load_ai_model)
 
                 # save mixture info
                 self.best_model = (load_ai_model, self.model_names[load_ai_model])
 
                 # load models for each wavelength range
-                self.low_model = load_model(os.path.dirname(__file__) + '/models/' + model_files[0])
-                self.mid_model = load_model(os.path.dirname(__file__) + '/models/' + model_files[1])
-                self.high_model = load_model(os.path.dirname(__file__) + '/models/' + model_files[2])
+                self.low_model = load_model(
+                    os.path.dirname(__file__) + '/models/' + model_files[0]
+                )
+                self.mid_model = load_model(
+                    os.path.dirname(__file__) + '/models/' + model_files[1]
+                )
+                self.high_model = load_model(
+                    os.path.dirname(__file__) + '/models/' + model_files[2]
+                )
 
         # ==== List of default datasets
         # user input data location
@@ -128,14 +148,14 @@ class Mieai:
         if self.load_ai_model == 'all':
 
             # find all models that include all species
-            L_set = set(volume_mixing_ratios.keys())
+            l_set = set(volume_mixing_ratios.keys())
             valid_models = {
                 name: data for name, data in self.model_names.items()
-                if L_set.issubset(data)
+                if l_set.issubset(data)
             }
             # check if there are no matching models
             if not valid_models:
-                raise ValueError("No network for " + str(L_set) + " is available.")
+                raise ValueError("No network for " + str(l_set) + " is available.")
 
             # Now pick the model with the smallest total size
             best_model = min(valid_models.items(), key=lambda item: len(item[1]))
@@ -162,14 +182,17 @@ class Mieai:
             mid_model = self.mid_model
             high_model = self.high_model
 
-        # ==== Input checks =============================================================
+        # ==== Input checks =======================================================================
 
         # check inputs are correct type
-        if not isinstance(wavelength, np.ndarray) and not isinstance(wavelength, (float, int)):
+        if (not isinstance(wavelength, np.ndarray)
+                and not isinstance(wavelength, (float, int))):
             print('Wavelength must be of type np.ndarray or float')
-        if not isinstance(particle_size, np.ndarray) and not isinstance(particle_size, (float, int)):
+        if (not isinstance(particle_size, np.ndarray)
+                and not isinstance(particle_size, (float, int))):
             print('Particle size must be of type np.ndarray or float')
-        if not isinstance(volume_mixing_ratios, dict) and not isinstance(volume_mixing_ratios, (float, int)):
+        if (not isinstance(volume_mixing_ratios, dict)
+                and not isinstance(volume_mixing_ratios, (float, int))):
             print('Volume mixing ratio must be of type dict or float')
 
         # convert floats to arrays
@@ -196,10 +219,11 @@ class Mieai:
         for i in idx[0]:
             vmr[i] = vmr[i] / sum(vmr[i])
 
-        # make volume mixing ratios have the same dimensions as final wavelength & final particle size
+        # make volume mixing ratios have the same dimensions as final wavelength & final
+        # particle size
         final_vmr = np.tile(vmr, (len(wavelength), 1))
 
-        # ==== Prepare model ============================================================
+        # ==== Prepare model ======================================================================
         # stack inputs
         inputs = np.stack((np.asarray(np.log10(final_wavelength)),
                            np.asarray(np.log10(final_particle_size)),
@@ -218,11 +242,14 @@ class Mieai:
 
         # predict coefficients for each wavelength range
         if low_mask.any():
-            extinction[low_mask], scattering[low_mask], asymmetry[low_mask] = low_model.predict(inputs[low_mask])
+            extinction[low_mask], scattering[low_mask], asymmetry[low_mask] \
+                = low_model.predict(inputs[low_mask])
         if mid_mask.any():
-            extinction[mid_mask], scattering[mid_mask], asymmetry[mid_mask] = mid_model.predict(inputs[mid_mask])
+            extinction[mid_mask], scattering[mid_mask], asymmetry[mid_mask] \
+                = mid_model.predict(inputs[mid_mask])
         if high_mask.any():
-            extinction[high_mask], scattering[high_mask], asymmetry[high_mask] = high_model.predict(inputs[high_mask])
+            extinction[high_mask], scattering[high_mask], asymmetry[high_mask] \
+                = high_model.predict(inputs[high_mask])
 
         # reshape outputs
         if scale == 'norm':
@@ -230,10 +257,13 @@ class Mieai:
             qsca = scattering[:, 0].reshape((len(wavelength), len(particle_size)))
             asym = asymmetry[:, 0].reshape((len(wavelength), len(particle_size)))
 
-        if scale == 'log':
+        elif scale == 'log':
             qext = 10**extinction[:, 0].reshape((len(wavelength), len(particle_size)))
             qsca = 10**scattering[:, 0].reshape((len(wavelength), len(particle_size)))
             asym = asymmetry[:, 0].reshape((len(wavelength), len(particle_size)))
+
+        else:
+            raise ValueError('Scale not recognized: ' + scale)
 
         return qext, qsca, asym
 
@@ -257,15 +287,18 @@ class Mieai:
         optical properties : np.ndarray of size (M, N)
             extinction coefficient, scattering coefficient, and asymmetries parameter
         """
-        # ==== Prepare inputs =============================================================
+        # ==== Prepare inputs =====================================================================
 
         # check inputs are correct type
         if not self.mute:
-            if not isinstance(wavelength, np.ndarray) and not isinstance(wavelength, (float, int)):
+            if (not isinstance(wavelength, np.ndarray)
+                    and not isinstance(wavelength, (float, int))):
                 print('Wavelength must be of type np.ndarray or float')
-            if not isinstance(particle_size, np.ndarray) and not isinstance(particle_size, (float, int)):
+            if (not isinstance(particle_size, np.ndarray)
+                    and not isinstance(particle_size, (float, int))):
                 print('Particle size must be of type np.ndarray or float')
-            if not isinstance(volume_mixing_ratios, dict) and not isinstance(volume_mixing_ratios, (float, int)):
+            if (not isinstance(volume_mixing_ratios, dict)
+                    and not isinstance(volume_mixing_ratios, (float, int))):
                 print('Volume mixing ratio must be of type dict or float')
 
         # convert floats to arrays
@@ -300,31 +333,39 @@ class Mieai:
         for i in idx[0]:
             vmr[i] = vmr[i] / sum(vmr[i])
 
-        # ==== Radius averaging =============================================================================
+        # ==== Radius averaging ===================================================================
         sub_rad, vmr = calculate_subradii(particle_size, vmr)
 
-        # ==== Load data for each species from files and get refractive index ===============================
+        # ==== Load data for each species from files and get refractive index =====================
         ref_index = read_in_refindex(species_list, wavelength, self.files)
 
-        # ==== Combination of all wavelengths and particle size =============================================
+        # ==== Combination of all wavelengths and particle size ===================================
         final_wavelength = np.repeat(wavelength, len(sub_rad))
         final_sub_rad = np.tile(sub_rad, len(wavelength))
         final_vmr = np.tile(vmr, (len(wavelength), 1))
         final_ref_index = np.repeat(ref_index, len(sub_rad), axis=1)
 
-        mixed_ref_index = mixing_theory(final_wavelength, final_ref_index, final_vmr, theory=theory)
+        mixed_ref_index = mixing_theory(
+            final_wavelength, final_ref_index, final_vmr, theory=theory
+        )
 
-        # ==== Calculate Mie Efficiencies ====================================================================
+        # ==== Calculate Mie Efficiencies =========================================================
         size_param = (2.0 * np.pi * final_sub_rad) / final_wavelength
 
         # qe_temp = extinction, qs_temp = scattering, g_temp = asymmetry
         qe_temp, qs_temp, _, g_temp = mie.efficiencies_mx(mixed_ref_index, size_param)
 
-        # ==== Prepare outputs ==============================================================================
+        # ==== Prepare outputs ====================================================================
         if len(sub_rad) != len(particle_size):
-            extinction = np.mean(qe_temp.reshape(len(particle_size) * len(wavelength), 6), axis=1).reshape(len(wavelength), len(particle_size)).T
-            scattering = np.mean(qs_temp.reshape(len(particle_size) * len(wavelength), 6), axis=1).reshape(len(wavelength), len(particle_size)).T
-            asymmetry = np.mean(g_temp.reshape(len(particle_size) * len(wavelength), 6), axis=1).reshape(len(wavelength), len(particle_size)).T
+            extinction = np.mean(
+                qe_temp.reshape(len(particle_size) * len(wavelength), 6), axis=1
+            ).reshape(len(wavelength), len(particle_size)).T
+            scattering = np.mean(
+                qs_temp.reshape(len(particle_size) * len(wavelength), 6), axis=1
+            ).reshape(len(wavelength), len(particle_size)).T
+            asymmetry = np.mean(
+                g_temp.reshape(len(particle_size) * len(wavelength), 6), axis=1
+            ).reshape(len(wavelength), len(particle_size)).T
 
         else:
             extinction = qe_temp.reshape(len(wavelength), len(particle_size)).T
