@@ -1,5 +1,7 @@
 """ Integration tests """
 import os
+import unittest
+
 import numpy as np
 
 from mieai import Mieai
@@ -10,7 +12,7 @@ def test_full():
 
 def test_grid():
     # ==== Set up
-    ma = Mieai(use_ai=False)
+    ma = Mieai(use_ai=False, mute=False)
     test_vars = ['qext', 'qsca', 'asym', 'wavelength']
 
     # ==== create tiny grid
@@ -30,6 +32,9 @@ def test_grid():
     for t, test in enumerate(test_vars):
         assert np.isclose(np.sum(lo[test]), expected_vals[t])
     assert ['SiO2', 'Fe'] == lo.attrs['species']
+    testcase = unittest.TestCase()
+    with testcase.assertRaises(ValueError):
+        ma.load_grid_efficiency(file_name='grid_that_does_not_exist.nc')
 
     # === use grid evaluation
     extinction, scattering, asymmetry = ma.grid_efficiencies(
@@ -39,6 +44,23 @@ def test_grid():
     assert np.isclose(np.sum(extinction), 134.77024714311165)
     assert np.isclose(np.sum(scattering), 108.05183641939178)
     assert np.isclose(np.sum(asymmetry), 45.20338788423523)
+
+    # === use grid evaluation with imediate read in
+    extinction, scattering, asymmetry = ma.grid_efficiencies(
+        np.logspace(-0.5, 1, 8), np.logspace(1.1, 1.9, 8),
+        {'SiO2': np.linspace(0, 1, 8), 'Fe': np.linspace(1, 0, 8)},
+        grid_file='grid_test.nc'
+    )
+    assert np.isclose(np.sum(extinction), 134.77024714311165)
+    assert np.isclose(np.sum(scattering), 108.05183641939178)
+    assert np.isclose(np.sum(asymmetry), 45.20338788423523)
+
+    # ==== request species that are not available
+    with testcase.assertRaises(ValueError):
+        extinction, scattering, asymmetry = ma.grid_efficiencies(
+            np.logspace(-0.5, 1, 8), np.logspace(1.1, 1.9, 8),
+            {'Not': np.linspace(0, 1, 8), 'Exist': np.linspace(1, 0, 8)},
+        )
 
     # ==== finish up
     os.remove('grid_test.nc')

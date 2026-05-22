@@ -48,12 +48,12 @@ def grid_efficiencies(self, wavelength, particle_size, volume_mixing_ratios,
         # open that dataset
         ds = grid[best_dataset[0]]['ds']
     else:
+        ds = xr.open_dataset(grid_file, engine="h5netcdf")
         # ==== check data grid
         for specs in ds.attrs['species']:
             if specs not in volume_mixing_ratios:
                 raise ValueError("The selected grid requires the volume mixing "
                                  "ratio of " + specs)
-        ds = xr.open_dataset(grid_file, engine="h5netcdf")
 
 
     # ==== read out data
@@ -208,5 +208,4 @@ def load_grid_efficiency(self, file_name=None):
             ds.close()
         except:
             # this error only rises if the file loaded is not what was expected.
-            if not self.mute:
-                print('[WARN] The following grid file could not be loded:\n    ', grid_file)
+            raise ValueError('[ERROR] The following grid file could not be loded:\n    ', grid_file)
