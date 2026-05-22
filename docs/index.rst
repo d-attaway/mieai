@@ -1,30 +1,39 @@
-.. figure:: https://raw.githubusercontent.com/Kiefersv/Nimbus/refs/heads/main/social/temp_logo.png
+.. figure:: TBD ADD LOGO
    :alt: Nimbus logo
    :align: center
 
 Welcome to Nimbus
 =================
 
-.. image:: https://codecov.io/gh/Kiefersv/Nimbus/graph/badge.svg?token=E0IEY03E85
-.. image:: https://raw.githubusercontent.com/Kiefersv/Nimbus/refs/heads/main/.github/workflows/pylint.svg
-.. image:: https://raw.githubusercontent.com/Kiefersv/Nimbus/refs/heads/main/.github/workflows/python.svg
+.. image:: !! ADD Code Cove link !!
+.. image:: https://raw.githubusercontent.com/d-attaway/mieai/refs/heads/main/.github/workflows/pylint.svg
+.. image:: https://raw.githubusercontent.com/d-attaway/mieai/refs/heads/main/.github/workflows/python.svg
 
-Nimbus is an open-source, light-weight, micro-physical cloud model at your service! It allows to fit micro-physical cloud formation properties to transmission and thermal emission spectra to investigate cloud formation in exoplanet atmospheres
+MieAi is a software package to calculate the opacities of heterogenouse cloud particles. To accelerate the otherwise slow calcualtions, it provides three methods:
+
+- 'Full': Perform effective refractive indice and Mie theory calculation.
+- 'Grid': Precalculate opacity grids provide fast approximation to cloud particle opacities.
+- 'AI': Convoluted Neural Networks trained to deliver high accuracy at a fraction of the computation time.
+
+Fully trained models are provided on `Zenodo <LINK TO ZENODO>`_, or can be trained by yourself according to your needs. MieAi is under active development and contributions are welcommed. If you want to run MieAI checkout the `quick start guide <Install_And_Quick_Start.ipynb>`_.
 
 Credit
 ------
-If you use Nimbus, please cite `Kiefer et al. (2026) <https://arxiv.org/pdf/2603.13167>`_. If you use the opacity generating functions (e.g. picaso_formater), please cite `Batalha et al. (2026) <https://iopscience.iop.org/article/10.3847/1538-3881/ae29e5>`_.
+If you use MieAi, please cite the following papers:
 
-..
-    And the following people have contributed:
-    - `Sven Kiefer <https://kiefersv.github.io/>`_
+- `Attaway et al. (2026) <LINK TO PAPER>`_
+- `Kiefer et al. (2026) <LINK TO PAPER>`_
+
+Also consider citing the softwares MieAi is based on:
+
+- `Prahl et al. (2026) <LINK TO PAPER>`_
+- `Tensorflow citation (2026) <LINK TO PAPER>`_
 
 .. toctree::
    :maxdepth: 1
    :caption: Contents
 
    Install_And_Quick_Start.ipynb
-   Physics_of_Nimbus.ipynb
    Tutorial.ipynb
    API.ipynb
 
