@@ -1,10 +1,11 @@
 """ This file contains all functionaliteis to use the pre-calculated grids """
-import os
-import numpy as np
-import xarray as xr
+# pylint: disable=C0415,R0902,R0912,R0913,R0914,R0915,R0917
+
 from glob import glob
 from time import time
 from datetime import datetime, timedelta
+import numpy as np
+import xarray as xr
 
 def grid_efficiencies(self, wavelength, particle_size, volume_mixing_ratios,
                       grid_file=None):
@@ -34,14 +35,14 @@ def grid_efficiencies(self, wavelength, particle_size, volume_mixing_ratios,
         # select mixing theory
         grid = self.default_grids
         # find all dataset that include all species
-        L_set = set(volume_mixing_ratios.keys())
+        l_set = set(volume_mixing_ratios.keys())
         valid_datasets = {
             name: data['species'] for name, data in grid.items()
-            if L_set.issubset(data['species'])
+            if l_set.issubset(data['species'])
         }
         # check if there are no matching grids
         if not valid_datasets:
-            raise ValueError("No default grid for " + str(L_set) +
+            raise ValueError("No default grid for " + str(l_set) +
                              " is available. Please provide one via grid_file.")
         # Now pick the dataset with the smallest total size
         best_dataset = min(valid_datasets.items(), key=lambda item: len(item[1]))
@@ -49,11 +50,11 @@ def grid_efficiencies(self, wavelength, particle_size, volume_mixing_ratios,
         ds = grid[best_dataset[0]]['ds']
     else:
         # ==== check data grid
+        ds = xr.open_dataset(grid_file, engine="h5netcdf")
         for specs in ds.attrs['species']:
             if specs not in volume_mixing_ratios:
                 raise ValueError("The selected grid requires the volume mixing "
                                  "ratio of " + specs)
-        ds = xr.open_dataset(grid_file, engine="h5netcdf")
 
 
     # ==== read out data
@@ -108,7 +109,8 @@ def produce_efficiency_grid(self, species, wavelengths=np.logspace(-1 ,1.3 ,200)
     Return
     ------
     ds : xarray.DataSet
-        Data set containing the extinction coefficient, scattering coefficient, and asymmetries parameter
+        Data set containing the extinction coefficient, scattering coefficient, and
+        asymmetries parameter
     """
 
     # ==== get shape of output array and prepare coordinates of dataset
@@ -204,9 +206,10 @@ def load_grid_efficiency(self, file_name=None):
             ds = xr.open_dataset(grid_file, engine="h5netcdf")
             self.default_grids[grid_file] = {'species': ds.attrs['species'], 'ds': ds}
             if not self.mute:
-                print('[INFO] Added grid for', ds.attrs['species'], f"from {round(ds['wavelength'].values[0], 2)} to {round(ds['wavelength'].values[-1], 2)} micron.")
+                print('[INFO] Added grid for', ds.attrs['species'],
+                      f"from {round(ds['wavelength'].values[0], 2)} to "
+                      f"{round(ds['wavelength'].values[-1], 2)} micron.")
             ds.close()
         except:
             # this error only rises if the file loaded is not what was expected.
-            if not self.mute:
-                print('[WARN] The following grid file could not be loded:\n    ', grid_file)
+            raise ValueError('[ERROR] The following grid file could not be loded:\n  ', grid_file)
