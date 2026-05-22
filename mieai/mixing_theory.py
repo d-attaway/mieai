@@ -58,7 +58,8 @@ def mixing_theory(wavelength, ref_index, vmr, theory='LLL'):
                    ]
 
             # calculate effective medium theory with Bruggemann minimization
-            resul = minimize(bruggeman_func, m_eff_0, args=[],
+            work = np.asarray([vmr[wav], ref_index[:, wav, 0], ref_index[:, wav, 1]]).T
+            resul = minimize(bruggeman_func, m_eff_0, args=work,
                              constraints=con, method='SLSQP')
             m_eff = resul.x
 

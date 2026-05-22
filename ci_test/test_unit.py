@@ -10,7 +10,6 @@ def test_sub_functions():
         {'SiO2': np.linspace(0, 1, 8), 'Fe': np.linspace(1, 0, 8)},
         theory='Bruggeman'
     )
-    assert np.isclose(np.sum(extinction), 135.02057908318517)
-    assert np.isclose(np.sum(scattering), 107.51411053800598)
-    assert np.isclose(np.sum(asymmetry), 44.00588855065756)
-
+    assert np.isclose(np.sum(extinction), 134.7829592828185)
+    assert np.isclose(np.sum(scattering), 104.69387306717095)
+    assert np.isclose(np.sum(asymmetry), 45.396489319908156)
