@@ -1,4 +1,5 @@
 """ General functionalities """
+# pylint: disable=C0415,R0902,R0912,R0914,R0915
 
 import os
 import pandas as pd
@@ -26,17 +27,20 @@ def read_in_refindex(species, wavelength, files):
 
     # prepare output
     ref_index = np.zeros((len(species), len(wavelength), 2))
-    for s, species in enumerate(species):
+    for s, spec in enumerate(species):
 
         # ==== Load data from files =====================================================
 
         # find species in files
+        data = None
         for file in files:
-            if species in file:
+            if spec in file:
                 # get data using pandas
                 content = pd.read_csv(file, sep=r'\s+', header=None, usecols=[1, 2, 3])
                 # convert to array and flip vertically so wavelength increases
                 data = np.flip(content.to_numpy(), axis=0)
+        if data is None:
+            raise ValueError('No refindex file found for ' + spec)
 
         # ==== Get the real(n) and imaginary (k) refractory index =======================
         # prepare output
@@ -96,8 +100,8 @@ def calculate_subradii(particle_size, vmr):
     sub_rad, vmr : (ndarray(M*6), ndarray)
         Sub-spacing of radii and adjusted vmr.
     """
-    if (len(particle_size) > 1):
-        if (len(set(particle_size)) != 1):
+    if len(particle_size) > 1:
+        if len(set(particle_size)) != 1:
             # prepare outputs
             rad_min = np.zeros_like(particle_size)
             rad_max = np.zeros_like(particle_size)
