@@ -111,23 +111,35 @@ def produce_efficiency_grid(self, species, wavelengths=np.logspace(-1 ,1.3 ,200)
         Data set containing the extinction coefficient, scattering coefficient, and asymmetries parameter
     """
 
+    # ==== Print gird production information
+    if not self.mute:
+        print('[INFO] Calculating mie efficiency grid')
+        print(f'   -> Wavelengths: {min(wavelengths)} to {max(wavelengths)} microns' )
+        print(f'   -> Particle sizes: {min(particle_sizes)} to {max(particle_sizes)} microns')
+        print(f'   -> VMR spacing: {round(100/(vmr_data_points-1),2)}%')
+        print(f'[INFO] Starting grid calculation ...')
+
     # ==== get shape of output array and prepare coordinates of dataset
     shape = [len(particle_sizes), len(wavelengths)]  # shape of data array
     dims = ['particle_size', 'wavelength']  # name of dimensions
-    vmrs = np.linspace(0, 1, vmr_data_points)
-    vmr = {}  # prepare standard vmr array
-    vmr_array = np.ones(len(particle_sizes))
+    vmrs = np.linspace(0, 1, vmr_data_points)  # vmr spacing
     coords = {
         'particle_size': particle_sizes,
         'wavelength': wavelengths,
     }
+
+    # ==== prepare standard vmr array
+    vmr = {}
+    vmr_array = np.ones(len(particle_sizes))
     for _, spec in enumerate(species):
         vmr[spec] = vmr_array.copy
+
     # ==== adatpitve fill in for species, last on is implicit
     for _, spec in enumerate(species[:-1]):
         shape.append(vmr_data_points)
         dims.append('VMR_' + spec)
         coords['VMR_' + spec] = np.linspace(0, 1, vmr_data_points)
+
     # ==== data array
     qext = np.zeros(shape)
     qsca = np.zeros(shape)
@@ -141,6 +153,8 @@ def produce_efficiency_grid(self, species, wavelengths=np.logspace(-1 ,1.3 ,200)
     # ==== Fill in Grid
     start_time = time()
     for v, vmri in enumerate(vmr_index):
+
+        # ETA calculation
         if v > 0:
             dt = (time() - start_time ) / v *(len(vmr_index ) -v)
             now = datetime.fromtimestamp(time())
@@ -148,14 +162,24 @@ def produce_efficiency_grid(self, species, wavelengths=np.logspace(-1 ,1.3 ,200)
             eta = eta.strftime("%Y-%m-%d %H:%M:%S")
         else:
             eta = '--'
-        print(f'Progress: { v /len(vmr_index ) *100:.1f}% (ETA: {eta})')
+        if not self.mute:
+            print(f'   -> Progress: { v /len(vmr_index ) *100:.1f}% (ETA: {eta})')
+
+        # vmr values for this loop
         vmr_last = 0
         vmr = {}
         for s, spec in enumerate(species[:-1]):
             vmr[spec] = vmrs[vmri[s] ] *vmr_array.copy()
             vmr_last += vmrs[vmri[s]]
         vmr[species[-1]] = np.max([1 - vmr_last, 0] ) *vmr_array.copy()
+
+        # run calculations but mute
+        mute_save = self.mute
+        self.mute = True  # mute for the calculation only
         line = self.efficiencies(wavelengths, particle_sizes, vmr, theory=theory)
+        self.mute = mute_save
+
+        # save results
         qext[:, :, *vmri] = line[0]
         qsca[:, :, *vmri] = line[1]
         asym[:, :, *vmri] = line[2]
@@ -177,6 +201,10 @@ def produce_efficiency_grid(self, species, wavelengths=np.logspace(-1 ,1.3 ,200)
     # ==== Save dataset if a save file is given
     if save_file is not None:
         ds.to_netcdf(save_file, engine="h5netcdf")
+        if not self.mute:
+            print('[INFO] Grid saved as: ' + save_file)
+    if not self.mute:
+        print('[INFO] Grid calculation complete')
 
     return ds
 
