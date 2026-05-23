@@ -211,7 +211,7 @@ def produce_efficiency_grid(self, species, wavelengths=np.logspace(-1 ,1.3 ,200)
     return ds
 
 
-def load_grid_efficiency(self, file_name=None):
+def load_grid_efficiency(self, file_name=None, ds_grid=None, ds_grid_name=None):
     """
     Load previously calculated opacity grids
 
@@ -219,7 +219,16 @@ def load_grid_efficiency(self, file_name=None):
     ----------
     self : MieAi class
     file_name : If given, only this file is loaded, if None, data_path will be checked.
+    ds_grid : xarray.Dataset from produce_efficiency_grid, also requires ds_grid_name
+    ds_grid_name : string, name under which ds_grid is saved
     """
+
+    # ==== Load a dataset if it is given
+    if ds_grid is not None:
+        if ds_grid_name is None:
+            # if no name is given, use current time
+            ds_grid_name = datetime.now().strftime("%Y%m%d%H%M%S")
+        self.default_grids[ds_grid_name] = {'species': ds_grid.attrs['species'], 'ds': ds_grid}
 
     # ==== Check if only one file should be loaded, or all files from data_path
     if file_name is None:
