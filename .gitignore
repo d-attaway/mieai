@@ -1,6 +1,7 @@
 .idea/
 *.egg-info/
 **/__pycache__/
-data/**
+data/*.nc
+data/*.keras
 **.nc
 **.DS_Store
