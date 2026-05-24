@@ -5,9 +5,9 @@ MODEL1:
   scale: 'norm'
 
   files:
-    - 'vmodel100rad_model11_low.keras'
-    - 'vmodel100rad_model11_mid.keras'
-    - 'vmodel100rad_model11_high.keras'
+    - 'vmodel100rad_logmodel1_low.keras'
+    - 'vmodel100rad_logmodel1_mid.keras'
+    - 'vmodel100rad_logmodel1_high.keras'
 
 MODEL2:
 
@@ -16,9 +16,9 @@ MODEL2:
   scale: 'norm'
 
   files:
-    - 'vmodelens_model2_low.keras'
-    - 'vmodelens_model2_mid.keras'
-    - 'vmodelens_model2_high.keras'
+    - 'vmodelens_logmodel1_low.keras'
+    - 'vmodelens_logmodel1_mid.keras'
+    - 'vmodelens_logmodel1_high.keras'
 
 MODEL3:
 
@@ -27,9 +27,9 @@ MODEL3:
   scale: 'norm'
 
   files:
-    - 'vmodelsil_model1_low.keras'
-    - 'vmodelsil_model1_mid.keras'
-    - 'vmodelsil_model1_high.keras'
+    - 'vmodelsil_logmodel1_low.keras'
+    - 'vmodelsil_logmodel1_mid.keras'
+    - 'vmodelsil_logmodel1_high.keras'
 
 MODEL4:
 
@@ -38,6 +38,6 @@ MODEL4:
   scale: 'log'
 
   files:
-    - 'vmodelmeteor_log_model1_low.keras'
-    - 'vmodelmeteor_log_model1_mid.keras'
-    - 'vmodelmeteor_log_model1_high.keras'
+    - 'vmodelmeteor_log_model2_low.keras'
+    - 'vmodelmeteor_log_model2_mid.keras'
+    - 'vmodelmeteor_log_model2_high.keras'
