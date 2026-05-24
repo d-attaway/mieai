@@ -200,10 +200,19 @@ class Mieai:
             wavelength = np.array([wavelength])
         if isinstance(particle_size, (float, int)):
             particle_size = np.array([particle_size])
+        for key, ratios in volume_mixing_ratios.items():
+            if isinstance(ratios, (float, int)):
+                volume_mixing_ratios[key] = np.array([ratios])
 
         # make all possible combinations of wavelength & particle size
         final_wavelength = np.repeat(wavelength, len(particle_size))
         final_particle_size = np.tile(particle_size, len(wavelength))
+
+        # add zero array to vmr dictionary if using less than the total amount of species
+        if len(volume_mixing_ratios.keys()) != len(best_model[1]):
+            missing_species = [key for key in best_model[1] if key not in volume_mixing_ratios]
+            for species in missing_species:
+                volume_mixing_ratios[species] = np.zeros_like(next(iter(volume_mixing_ratios.values())))
 
         # reorder volume mixing ratios and turn into array
         vmr_arr = {key: volume_mixing_ratios[key] for key in best_model[1]}
