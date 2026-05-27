@@ -7,15 +7,22 @@ import numpy as np
 from mieai import Mieai
 
 
-def test_full():
+def test_ai():
+    # ==== Set up
     ma = Mieai(default_data_location='files/')
+    test_vars = ['qext', 'qsca', 'asym', 'wavelength']
 
     extinction, scattering, asymmetry = ma.ai_efficiencies(
         np.logspace(-0.5, 1, 8), np.logspace(1.1, 1.9, 8),
-        {'MgSiO3': np.linspace(0, 1, 8), 'Fe': np.linspace(1, 0, 8)}
+        {
+            'MgSiO3': np.linspace(0, 1, 8),
+            'Fe': np.linspace(1, 0, 8),
+            'TiO2': np.linspace(1, 0, 8)
+        }
     )
-
-    assert False
+    assert np.isclose(np.sum(extinction), 135.84726572036743)
+    assert np.isclose(np.sum(scattering), 110.76739168167114)
+    assert np.isclose(np.sum(asymmetry), 41.40172505378723)
 
 def test_grid():
     # ==== Set up
@@ -71,6 +78,3 @@ def test_grid():
 
     # ==== finish up
     os.remove('grid_test.nc')
-
-def test_ai():
-    pass
