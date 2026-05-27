@@ -12,6 +12,7 @@ def test_ai():
     ma = Mieai(default_data_location='files/')
     test_vars = ['qext', 'qsca', 'asym', 'wavelength']
 
+    # ==== Standard Ai run
     extinction, scattering, asymmetry = ma.ai_efficiencies(
         np.logspace(-0.5, 1, 8), np.logspace(1.1, 1.9, 8),
         {
@@ -23,6 +24,43 @@ def test_ai():
     assert np.isclose(np.sum(extinction), 135.84726572036743)
     assert np.isclose(np.sum(scattering), 110.76739168167114)
     assert np.isclose(np.sum(asymmetry), 41.40172505378723)
+
+    # ==== Use load grid model
+    ma = Mieai(default_data_location='files/', load_ai_model='MODEL2')
+    extinction, scattering, asymmetry = ma.ai_efficiencies(
+        np.logspace(-0.5, 1, 8), np.logspace(1.1, 1.9, 8),
+        {
+            'MgSiO3': np.linspace(0, 1, 8),
+            'Fe': np.linspace(1, 0, 8),
+            'TiO2': np.linspace(1, 0, 8)
+        }
+    )
+    assert np.isclose(np.sum(extinction), 135.84726572036743)
+    assert np.isclose(np.sum(scattering), 110.76739168167114)
+    assert np.isclose(np.sum(asymmetry), 41.40172505378723)
+
+    # ==== Test float input
+    extinction, scattering, asymmetry = ma.ai_efficiencies(3, 1,
+        {
+            'MgSiO3': [0.4],
+            'Fe': [0.4],
+            'TiO2': [0.4]
+        }
+    )
+    assert np.isclose(np.sum(extinction), 2.857503890991211)
+    assert np.isclose(np.sum(scattering), 2.3773093223571777)
+    assert np.isclose(np.sum(asymmetry), 0.39067474007606506)
+
+    # ==== Test wrong model load
+    testcase = unittest.TestCase()
+    with testcase.assertRaises(ValueError):
+        ma = Mieai(default_data_location='files/', load_ai_model='NON_EXISTING')
+
+    # ==== Test non-initialisation error
+    with testcase.assertRaises(ValueError):
+        ma = Mieai(use_ai=False)
+        _, _, _ = ma.ai_efficiencies(None, None, None)
+
 
 def test_grid():
     # ==== Set up
