@@ -8,7 +8,14 @@ from mieai import Mieai
 
 
 def test_full():
-    pass
+    ma = Mieai(default_data_location='files/')
+
+    extinction, scattering, asymmetry = ma.ai_efficiencies(
+        np.logspace(-0.5, 1, 8), np.logspace(1.1, 1.9, 8),
+        {'MgSiO3': np.linspace(0, 1, 8), 'Fe': np.linspace(1, 0, 8)}
+    )
+
+    assert False
 
 def test_grid():
     # ==== Set up
