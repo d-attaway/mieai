@@ -30,7 +30,7 @@ jobs:
         run: |
           python -m pip install --upgrade numpy pytest-cov xarray netcdf4 
           python -m pip install --upgrade h5netcdf miepython h5py scipy pyyaml
-          python -m pip install --upgrade pandas
+          python -m pip install --upgrade pandas tensorflow
           python -m pip install -e .
       - name: Run Tests
         shell: bash -l {0}
