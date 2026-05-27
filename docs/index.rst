@@ -6,8 +6,8 @@ Welcome to Nimbus
 =================
 
 .. image:: https://codecov.io/gh/d-attaway/mieai/graph/badge.svg?token=TJK7ELIKE5
-.. image:: https://github.com/d-attaway/mieai/blob/documentation/.github/workflows/pylint.svg
-.. image:: https://github.com/d-attaway/mieai/blob/documentation/.github/workflows/python.svg
+.. image:: https://github.com/d-attaway/mieai/blob/documentation/.github/pylint.svg
+.. image:: https://github.com/d-attaway/mieai/blob/documentation/.github/python.svg
 
 MieAi is a software package to calculate the opacities of heterogenouse cloud particles. To accelerate the otherwise slow calcualtions, it provides three methods:
 

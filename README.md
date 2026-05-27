@@ -1,6 +1,6 @@
-[![codecov](https://codecov.io/gh/d-attaway/mieai/graph/badge.svg?token=TJK7ELIKE5)
-![pylint](https://github.com/d-attaway/mieai/blob/documentation/.github/workflows/pylint.svg)
-![python](https://github.com/d-attaway/mieai/blob/documentation/.github/workflows/python.svg)
+![codecov](https://codecov.io/gh/d-attaway/mieai/graph/badge.svg?token=TJK7ELIKE5)
+![pylint](https://github.com/d-attaway/mieai/blob/documentation/.github/pylint.svg)
+![python](https://github.com/d-attaway/mieai/blob/documentation/.github/python.svg)
 
 MieAI
 =====
