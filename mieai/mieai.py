@@ -8,6 +8,7 @@ import miepython as mie
 
 from .sub_functions import read_in_refindex, calculate_subradii, get_model_info
 from .mixing_theory import mixing_theory
+from .data_handling import get_models
 
 
 class Mieai:
@@ -21,7 +22,7 @@ class Mieai:
     # ==== Import functions from sub-files ========================================================
     from .grid import grid_efficiencies, produce_efficiency_grid, load_grid_efficiency
 
-    def __init__(self, use_ai=True, default_data_location=None, mute=True, load_ai_model = 'all'):
+    def __init__(self, use_ai=True, default_data_location=None, default_model_location=None, mute=True, load_ai_model = 'all'):
         """
         Constructor
 
@@ -61,50 +62,59 @@ class Mieai:
                 "MODEL4": ['SiO2', 'MgSiO3', 'Fe'],
             }
 
-            # load all models by default if one is not specified
-            if load_ai_model == 'all':
-
-                # prepare output
-                self.low_waves = {}
-                self.high_waves = {}
-                self.scales = {}
-                self.low_models = {}
-                self.mid_models = {}
-                self.high_models = {}
-
-                for model in self.model_names.keys():
-                    (model_files, self.low_waves[model], self.high_waves[model],
-                     self.scales[model]) = get_model_info(model)
-
-                    # load all models for each mixture
-                    self.low_models[model] = load_model(
-                        os.path.dirname(__file__) + '/models/' + model_files[0]
-                    )
-                    self.mid_models[model] = load_model(
-                        os.path.dirname(__file__) + '/models/' + model_files[1]
-                    )
-                    self.high_models[model] = load_model(
-                        os.path.dirname(__file__) + '/models/' + model_files[2]
-                    )
-
+            # models location
+            if default_model_location is not None:
+                self.model_path = default_model_location + '/models/'
+            # default data location
             else:
-                # get info for the specified model
-                model_files, self.low_wave, self.high_wave, self.scale \
-                    = get_model_info(load_ai_model)
+                self.model_path = os.path.dirname(__file__) + '/models/'
 
-                # save mixture info
-                self.best_model = (load_ai_model, self.model_names[load_ai_model])
+            # only load models if the model files exist
+            models = glob.glob(self.model_path + '*.keras')
+            if models:
 
-                # load models for each wavelength range
-                self.low_model = load_model(
-                    os.path.dirname(__file__) + '/models/' + model_files[0]
-                )
-                self.mid_model = load_model(
-                    os.path.dirname(__file__) + '/models/' + model_files[1]
-                )
-                self.high_model = load_model(
-                    os.path.dirname(__file__) + '/models/' + model_files[2]
-                )
+                # load all models by default if one is not specified
+                if load_ai_model == 'all':
+
+                    # prepare output
+                    self.low_waves = {}
+                    self.high_waves = {}
+                    self.low_models = {}
+                    self.mid_models = {}
+                    self.high_models = {}
+
+                    for model in self.model_names.keys():
+                        (model_files, self.low_waves[model], self.high_waves[model]) = get_model_info(model)
+
+                        # load all models for each mixture
+                        self.low_models[model] = load_model(
+                            self.model_path + model_files[0]
+                        )
+                        self.mid_models[model] = load_model(
+                            self.model_path + model_files[1]
+                        )
+                        self.high_models[model] = load_model(
+                            self.model_path + model_files[2]
+                        )
+
+                else:
+                    # get info for the specified model
+                    model_files, self.low_wave, self.high_wave \
+                        = get_model_info(load_ai_model)
+
+                    # save mixture info
+                    self.best_model = (load_ai_model, self.model_names[load_ai_model])
+
+                    # load models for each wavelength range
+                    self.low_model = load_model(
+                        self.model_path + model_files[0]
+                    )
+                    self.mid_model = load_model(
+                        self.model_path + model_files[1]
+                    )
+                    self.high_model = load_model(
+                        self.model_path + model_files[2]
+                    )
 
         # ==== List of default datasets
         # user input data location
@@ -163,7 +173,6 @@ class Mieai:
             # get info for the model
             low_wave = self.low_waves[best_model[0]]
             high_wave = self.high_waves[best_model[0]]
-            scale = self.scales[best_model[0]]
             low_model = self.low_models[best_model[0]]
             mid_model = self.mid_models[best_model[0]]
             high_model = self.high_models[best_model[0]]
@@ -177,7 +186,6 @@ class Mieai:
             best_model = self.best_model
             low_wave = self.low_wave
             high_wave = self.high_wave
-            scale = self.scale
             low_model = self.low_model
             mid_model = self.mid_model
             high_model = self.high_model
@@ -261,18 +269,9 @@ class Mieai:
                 = high_model.predict(inputs[high_mask])
 
         # reshape outputs
-        if scale == 'norm':
-            qext = extinction[:, 0].reshape((len(wavelength), len(particle_size)))
-            qsca = scattering[:, 0].reshape((len(wavelength), len(particle_size)))
-            asym = asymmetry[:, 0].reshape((len(wavelength), len(particle_size)))
-
-        elif scale == 'log':
-            qext = 10**extinction[:, 0].reshape((len(wavelength), len(particle_size)))
-            qsca = 10**scattering[:, 0].reshape((len(wavelength), len(particle_size)))
-            asym = asymmetry[:, 0].reshape((len(wavelength), len(particle_size)))
-
-        else:
-            raise ValueError('Scale not recognized: ' + scale)
+        qext = 10**extinction[:, 0].reshape((len(wavelength), len(particle_size)))
+        qsca = 10**scattering[:, 0].reshape((len(wavelength), len(particle_size)))
+        asym = asymmetry[:, 0].reshape((len(wavelength), len(particle_size)))
 
         return qext, qsca, asym
 
@@ -382,3 +381,10 @@ class Mieai:
             asymmetry = g_temp.reshape(len(wavelength), len(particle_size)).T
 
         return extinction, scattering, asymmetry
+
+    def download_models(self):
+        '''
+        Download MieAi models from Zenodo.
+        '''
+        get_models(self.model_path.removesuffix('/models/'))
+        print('MieAi models downloaded. Please intialize MieAi again to load the models.')

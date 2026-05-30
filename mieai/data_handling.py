@@ -5,11 +5,19 @@ import requests
 from zipfile import ZipFile
 from io import BytesIO
 
-def get_models(url):
+def get_models(data_location):
     '''
-    Download and unzip AI models from Zenodo
+    Download and unzip AI old_mieai_models from Zenodo
     '''
-    # url = 'https://zenodo.org/records/20346256/files/models.zip?download=1'
-    folder_name = 'models'
+    # Zenodo link
+    url = 'https://zenodo.org/records/20346256/files/models.zip?download=1'
+
+    # download and unzip folder from Zenodo
+    os.makedirs(data_location, exist_ok=True)
     r = requests.get(url)
-    ZipFile(BytesIO(r.content)).extractall(folder_name)
+    ZipFile(BytesIO(r.content)).extractall(data_location)
+
+    # delete MACOSX folder
+    shutil.rmtree(os.path.join(data_location, '__MACOSX'))
+
+    return os.path.join(data_location, 'models')

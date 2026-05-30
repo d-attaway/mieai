@@ -163,7 +163,6 @@ def get_model_info(model_name):
         files = model_info['files']
         low_wave = model_info['low_wave']
         high_wave = model_info['high_wave']
-        scale = model_info['scale']
-        return files, low_wave, high_wave, scale
+        return files, low_wave, high_wave
     except KeyError:
         raise ValueError(f"Network '{model_name}' not found in config")

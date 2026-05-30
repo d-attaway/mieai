@@ -2,7 +2,6 @@ MODEL1:
 
   low_wave: 1
   high_wave: 100
-  scale: 'norm'
 
   files:
     - 'vmodel100rad_logmodel1_low.keras'
@@ -13,7 +12,6 @@ MODEL2:
 
   low_wave: 1
   high_wave: 100
-  scale: 'norm'
 
   files:
     - 'vmodelens_logmodel1_low.keras'
@@ -24,7 +22,6 @@ MODEL3:
 
   low_wave: 1
   high_wave: 100
-  scale: 'norm'
 
   files:
     - 'vmodelsil_logmodel1_low.keras'
@@ -35,7 +32,6 @@ MODEL4:
 
   low_wave: 1
   high_wave: 100
-  scale: 'log'
 
   files:
     - 'vmodelmeteor_log_model2_low.keras'
