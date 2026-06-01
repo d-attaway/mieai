@@ -5,3 +5,4 @@ data/*.nc
 data/*.keras
 **.nc
 **.DS_Store
+mieai/models/*.keras
