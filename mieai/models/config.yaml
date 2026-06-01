@@ -3,6 +3,11 @@ MODEL1:
   low_wave: 1
   high_wave: 100
 
+  species:
+    - 'TiO2'
+    - 'Fe'
+    - 'Mg2SiO4'
+
   files:
     - 'vmodel100rad_logmodel1_low.keras'
     - 'vmodel100rad_logmodel1_mid.keras'
@@ -12,6 +17,11 @@ MODEL2:
 
   low_wave: 1
   high_wave: 100
+
+  species:
+    - 'TiO2'
+    - 'Fe'
+    - 'MgSiO3'
 
   files:
     - 'vmodelens_logmodel1_low.keras'
@@ -23,6 +33,11 @@ MODEL3:
   low_wave: 1
   high_wave: 100
 
+  species:
+    - 'SiO2'
+    - 'MgSiO3'
+    - 'Mg2SiO4'
+
   files:
     - 'vmodelsil_logmodel1_low.keras'
     - 'vmodelsil_logmodel1_mid.keras'
@@ -32,6 +47,11 @@ MODEL4:
 
   low_wave: 1
   high_wave: 100
+
+  species:
+    - 'SiO2'
+    - 'MgSiO3'
+    - 'Fe'
 
   files:
     - 'vmodelmeteor_log_model2_low.keras'

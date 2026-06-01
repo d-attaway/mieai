@@ -141,33 +141,38 @@ def calculate_subradii(particle_size, vmr):
 
     return sub_rad, vmr
 
-def get_model_info(model_name, model_location):
+def get_model_info(model_path):
     '''
     Get neural network files and information.
 
     Parameters
     ----------
-    model_name: string
+    model_path: string
 
     Returns
     -------
     List of files that correspond to the network.
 
     '''
-    config_yaml = model_location + '/config.yaml'
+    config_yaml = model_path + 'config.yaml'
     with open(config_yaml, 'r') as f:
         config = yaml.safe_load(f)
 
-    try:
-        model_info = config[model_name]
-        files = model_info['files']
-        low_wave = model_info['low_wave']
-        high_wave = model_info['high_wave']
-        return files, low_wave, high_wave
-    except KeyError:
-        raise ValueError(f"Network '{model_name}' not found in config")
+    files = {}
+    species = {}
+    low_wave = {}
+    high_wave = {}
 
-def initialize_ai_models(load_ai_model, model_names, model_path):
+    for model in config.keys():
+        model_info = config[model]
+        files[model] = model_info['files']
+        species[model] = model_info['species']
+        low_wave[model] = model_info['low_wave']
+        high_wave[model] = model_info['high_wave']
+
+    return files, species, low_wave, high_wave
+
+def initialize_ai_models(load_ai_model, model_path):
     '''
     Load ai tensorflow models.
 
@@ -193,49 +198,48 @@ def initialize_ai_models(load_ai_model, model_names, model_path):
     '''
     from tensorflow.keras.models import load_model
 
+    # read  config file
+    model_files, species, low_waves, high_waves = get_model_info(model_path)
+
     # load all models by default if one is not specified
     if load_ai_model == 'all':
 
         # prepare output
-        low_waves = {}
-        high_waves = {}
         low_models = {}
         mid_models = {}
         high_models = {}
 
-        for model in model_names.keys():
-            (model_files, low_waves[model], high_waves[model]) = get_model_info(model, model_path)
+        # load all models for each mixture
+        for model in low_waves.keys():
 
-            # load all models for each mixture
-            low_models[model] = load_model(
-                model_path + model_files[0]
-            )
-            mid_models[model] = load_model(
-                model_path + model_files[1]
-            )
-            high_models[model] = load_model(
-                model_path + model_files[2]
-            )
+            # only load models that files are downloaded for
+            if os.path.isfile(model_path + model_files[model][0]):
 
-        return low_waves, high_waves, low_models, mid_models, high_models
+                low_models[model] = load_model(
+                    model_path + model_files[model][0]
+                )
+                mid_models[model] = load_model(
+                    model_path + model_files[model][1]
+                )
+                high_models[model] = load_model(
+                    model_path + model_files[model][2]
+                )
 
     else:
-        # get info for the specified model
-        model_files, low_wave, high_wave \
-            = get_model_info(load_ai_model, model_path)
-
-        # save mixture info
-        best_model = (load_ai_model, model_names[load_ai_model])
 
         # load models for each wavelength range
-        low_model = load_model(
-            model_path + model_files[0]
+        low_models = load_model(
+            model_path + model_files[load_ai_model][0]
         )
-        mid_model = load_model(
-            model_path + model_files[1]
+        mid_models = load_model(
+            model_path + model_files[load_ai_model][1]
         )
-        high_model = load_model(
-            model_path + model_files[2]
+        high_models = load_model(
+            model_path + model_files[load_ai_model][2]
         )
 
-        return low_wave, high_wave, low_model, mid_model, high_model, best_model
+        low_waves = low_waves[load_ai_model]
+        high_waves = high_waves[load_ai_model]
+        species = species[load_ai_model]
+
+    return low_waves, high_waves, low_models, mid_models, high_models, species
