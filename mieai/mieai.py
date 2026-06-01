@@ -62,10 +62,10 @@ class Mieai:
 
             # models location
             if default_model_location is not None:
-                self.model_path = default_model_location + '/models/'
+                self.model_path = default_model_location
             # default data location
             else:
-                self.model_path = os.path.dirname(__file__) + '/models/'
+                self.model_path = os.path.dirname(__file__)
 
             # only load models if the model files exist
             models = glob.glob(self.model_path + '*.keras')
