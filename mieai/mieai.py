@@ -6,8 +6,9 @@ import glob
 import numpy as np
 import miepython as mie
 
-from .sub_functions import read_in_refindex, calculate_subradii, get_model_info
+from .sub_functions import read_in_refindex, calculate_subradii, get_model_info, initialize_ai_models
 from .mixing_theory import mixing_theory
+from .data_handling import get_models
 
 
 class Mieai:
@@ -21,7 +22,7 @@ class Mieai:
     # ==== Import functions from sub-files ========================================================
     from .grid import grid_efficiencies, produce_efficiency_grid, load_grid_efficiency
 
-    def __init__(self, use_ai=True, default_data_location=None, mute=True, load_ai_model = 'all'):
+    def __init__(self, use_ai=True, default_data_location=None, default_model_location=None, mute=True, load_ai_model = 'all'):
         """
         Constructor
 
@@ -50,8 +51,6 @@ class Mieai:
 
         # ==== Prepare Neural Network =============================================================
         if use_ai:
-            # ==== Import tensorflow here so people can use Mieai without it
-            from tensorflow.keras.models import load_model
 
             # model options
             self.model_names = {
@@ -61,50 +60,26 @@ class Mieai:
                 "MODEL4": ['SiO2', 'MgSiO3', 'Fe'],
             }
 
-            # load all models by default if one is not specified
-            if load_ai_model == 'all':
-
-                # prepare output
-                self.low_waves = {}
-                self.high_waves = {}
-                self.scales = {}
-                self.low_models = {}
-                self.mid_models = {}
-                self.high_models = {}
-
-                for model in self.model_names.keys():
-                    (model_files, self.low_waves[model], self.high_waves[model],
-                     self.scales[model]) = get_model_info(model)
-
-                    # load all models for each mixture
-                    self.low_models[model] = load_model(
-                        os.path.dirname(__file__) + '/models/' + model_files[0]
-                    )
-                    self.mid_models[model] = load_model(
-                        os.path.dirname(__file__) + '/models/' + model_files[1]
-                    )
-                    self.high_models[model] = load_model(
-                        os.path.dirname(__file__) + '/models/' + model_files[2]
-                    )
-
+            # models location
+            if default_model_location is not None:
+                self.model_path = default_model_location + '/models/'
+            # default data location
             else:
-                # get info for the specified model
-                model_files, self.low_wave, self.high_wave, self.scale \
-                    = get_model_info(load_ai_model)
+                self.model_path = os.path.dirname(__file__) + '/models/'
 
-                # save mixture info
-                self.best_model = (load_ai_model, self.model_names[load_ai_model])
+            # only load models if the model files exist
+            models = glob.glob(self.model_path + '*.keras')
+            if models:
 
-                # load models for each wavelength range
-                self.low_model = load_model(
-                    os.path.dirname(__file__) + '/models/' + model_files[0]
-                )
-                self.mid_model = load_model(
-                    os.path.dirname(__file__) + '/models/' + model_files[1]
-                )
-                self.high_model = load_model(
-                    os.path.dirname(__file__) + '/models/' + model_files[2]
-                )
+                # load all models
+                if load_ai_model == 'all':
+                    self.low_waves, self.high_waves, self.low_models, self.mid_models, self.high_models \
+                        = initialize_ai_models(load_ai_model, self.model_names, self.model_path)
+
+                # load specified model
+                else:
+                    self.low_wave, self.high_wave, self.low_model, self.mid_model, self.high_model, self.best_model \
+                        = initialize_ai_models(load_ai_model, self.model_names, self.model_path)
 
         # ==== List of default datasets
         # user input data location
@@ -160,15 +135,26 @@ class Mieai:
             # Now pick the model with the smallest total size
             best_model = min(valid_models.items(), key=lambda item: len(item[1]))
 
+            # add zero array to vmr dictionary if using less than the total amount of species
+            if len(volume_mixing_ratios.keys()) != len(best_model[1]):
+                missing_species = [key for key in best_model[1] if key not in volume_mixing_ratios]
+                for species in missing_species:
+                    volume_mixing_ratios[species] = np.zeros_like(next(iter(volume_mixing_ratios.values())))
+
             # get info for the model
             low_wave = self.low_waves[best_model[0]]
             high_wave = self.high_waves[best_model[0]]
-            scale = self.scales[best_model[0]]
             low_model = self.low_models[best_model[0]]
             mid_model = self.mid_models[best_model[0]]
             high_model = self.high_models[best_model[0]]
 
         else:
+            # add zero array to vmr dictionary if using less than the total amount of species
+            if len(volume_mixing_ratios.keys()) != len(self.best_model[1]):
+                missing_species = [key for key in self.best_model[1] if key not in volume_mixing_ratios]
+                for species in missing_species:
+                    volume_mixing_ratios[species] = np.zeros_like(next(iter(volume_mixing_ratios.values())))
+
             # check correct model is initialized for given volume mixing ratios
             if sorted(self.best_model[1]) != sorted(volume_mixing_ratios.keys()):
                 raise ValueError("Incorrect AI model initialized for this mixture")
@@ -177,7 +163,6 @@ class Mieai:
             best_model = self.best_model
             low_wave = self.low_wave
             high_wave = self.high_wave
-            scale = self.scale
             low_model = self.low_model
             mid_model = self.mid_model
             high_model = self.high_model
@@ -200,6 +185,9 @@ class Mieai:
             wavelength = np.array([wavelength])
         if isinstance(particle_size, (float, int)):
             particle_size = np.array([particle_size])
+        for key, ratios in volume_mixing_ratios.items():
+            if isinstance(ratios, (float, int)):
+                volume_mixing_ratios[key] = np.array([ratios])
 
         # make all possible combinations of wavelength & particle size
         final_wavelength = np.repeat(wavelength, len(particle_size))
@@ -252,18 +240,9 @@ class Mieai:
                 = high_model.predict(inputs[high_mask])
 
         # reshape outputs
-        if scale == 'norm':
-            qext = extinction[:, 0].reshape((len(wavelength), len(particle_size)))
-            qsca = scattering[:, 0].reshape((len(wavelength), len(particle_size)))
-            asym = asymmetry[:, 0].reshape((len(wavelength), len(particle_size)))
-
-        elif scale == 'log':
-            qext = 10**extinction[:, 0].reshape((len(wavelength), len(particle_size)))
-            qsca = 10**scattering[:, 0].reshape((len(wavelength), len(particle_size)))
-            asym = asymmetry[:, 0].reshape((len(wavelength), len(particle_size)))
-
-        else:
-            raise ValueError('Scale not recognized: ' + scale)
+        qext = 10**extinction[:, 0].reshape((len(wavelength), len(particle_size)))
+        qsca = 10**scattering[:, 0].reshape((len(wavelength), len(particle_size)))
+        asym = asymmetry[:, 0].reshape((len(wavelength), len(particle_size)))
 
         return qext, qsca, asym
 
@@ -306,6 +285,9 @@ class Mieai:
             wavelength = np.array([wavelength])
         if isinstance(particle_size, (float, int)):
             particle_size = np.array([particle_size])
+        for key, ratios in volume_mixing_ratios.items():
+            if isinstance(ratios, (float, int)):
+                volume_mixing_ratios[key] = np.array([ratios])
 
         # define species list according to entries in vmr
         species_list = list(volume_mixing_ratios.keys())
@@ -373,3 +355,20 @@ class Mieai:
             asymmetry = g_temp.reshape(len(wavelength), len(particle_size)).T
 
         return extinction, scattering, asymmetry
+
+    def download_models(self):
+        '''
+        Download MieAi models from Zenodo and load all models/specified model.
+        '''
+        # download models
+        get_models(self.model_path.removesuffix('/models/'))
+
+        # load models
+        if self.load_ai_model == 'all':
+            self.low_waves, self.high_waves, self.low_models, self.mid_models, self.high_models \
+                = initialize_ai_models(self.load_ai_model, self.model_names, self.model_path)
+
+        # load specified model
+        else:
+            self.low_wave, self.high_wave, self.low_model, self.mid_model, self.high_model, self.best_model \
+                = initialize_ai_models(self.load_ai_model, self.model_names, self.model_path)
