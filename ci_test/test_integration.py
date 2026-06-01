@@ -9,7 +9,7 @@ from mieai import Mieai
 
 def test_ai():
     # ==== Set up
-    ma = Mieai(default_data_location='files/')
+    ma = Mieai(default_model_location='files/')
     test_vars = ['qext', 'qsca', 'asym', 'wavelength']
 
     # ==== Standard Ai run
@@ -26,7 +26,7 @@ def test_ai():
     assert np.isclose(np.sum(asymmetry), 41.40172505378723)
 
     # ==== Use load grid model
-    ma = Mieai(default_data_location='files/', load_ai_model='MODEL2')
+    ma = Mieai(default_model_location='files/', load_ai_model='MODEL2')
     extinction, scattering, asymmetry = ma.ai_efficiencies(
         np.logspace(-0.5, 1, 8), np.logspace(1.1, 1.9, 8),
         {
@@ -54,7 +54,7 @@ def test_ai():
     # ==== Test wrong model load
     testcase = unittest.TestCase()
     with testcase.assertRaises(ValueError):
-        ma = Mieai(default_data_location='files/', load_ai_model='NON_EXISTING')
+        ma = Mieai(default_model_location='files/', load_ai_model='NON_EXISTING')
 
     # ==== Test non-initialisation error
     with testcase.assertRaises(ValueError):
