@@ -4,6 +4,8 @@
 import requests
 from zipfile import ZipFile
 from io import BytesIO
+import os
+import shutil
 
 def get_models(data_location):
     '''

@@ -22,7 +22,7 @@ class Mieai:
     # ==== Import functions from sub-files ========================================================
     from .grid import grid_efficiencies, produce_efficiency_grid, load_grid_efficiency
 
-    def __init__(self, use_ai=True, default_data_location=None, default_model_location=None, mute=True, load_ai_model = 'all'):
+    def __init__(self, use_ai=True, default_model_location=None, mute=True, load_ai_model = 'all'):
         """
         Constructor
 
@@ -33,7 +33,7 @@ class Mieai:
         load_ai_model : str
             Which AI model to load. Defualt is 'all', which loads all models. User can input
             model names to load a specific model.
-        default_data_location : str, optional
+        default_model_location : str, optional
             Location of opacity data. If none, MieAi defaults are used.
         mute : bool, optional
             If True, MieAi will produce no diagnostic outputs and runs quietly.
@@ -62,10 +62,10 @@ class Mieai:
 
             # models location
             if default_model_location is not None:
-                self.model_path = default_model_location + '/models/'
+                self.model_path = default_model_location
             # default data location
             else:
-                self.model_path = os.path.dirname(__file__) + '/models/'
+                self.model_path = os.path.dirname(__file__)
 
             # only load models if the model files exist
             models = glob.glob(self.model_path + '*.keras')
@@ -83,8 +83,8 @@ class Mieai:
 
         # ==== List of default datasets
         # user input data location
-        if default_data_location is not None:
-            self.data_path = default_data_location
+        if default_model_location is not None:
+            self.data_path = default_model_location
         # default data location
         else:
             self.data_path = os.path.dirname(__file__) + '/../data/'

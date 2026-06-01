@@ -141,7 +141,7 @@ def calculate_subradii(particle_size, vmr):
 
     return sub_rad, vmr
 
-def get_model_info(model_name):
+def get_model_info(model_name, model_location):
     '''
     Get neural network files and information.
 
@@ -154,7 +154,7 @@ def get_model_info(model_name):
     List of files that correspond to the network.
 
     '''
-    config_yaml = os.path.dirname(__file__) + '/config.yaml'
+    config_yaml = model_location + '/config.yaml'
     with open(config_yaml, 'r') as f:
         config = yaml.safe_load(f)
 
@@ -204,7 +204,7 @@ def initialize_ai_models(load_ai_model, model_names, model_path):
         high_models = {}
 
         for model in model_names.keys():
-            (model_files, low_waves[model], high_waves[model]) = get_model_info(model)
+            (model_files, low_waves[model], high_waves[model]) = get_model_info(model, model_path)
 
             # load all models for each mixture
             low_models[model] = load_model(
@@ -222,7 +222,7 @@ def initialize_ai_models(load_ai_model, model_names, model_path):
     else:
         # get info for the specified model
         model_files, low_wave, high_wave \
-            = get_model_info(load_ai_model)
+            = get_model_info(load_ai_model, model_path)
 
         # save mixture info
         best_model = (load_ai_model, model_names[load_ai_model])
