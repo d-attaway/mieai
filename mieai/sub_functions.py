@@ -166,3 +166,76 @@ def get_model_info(model_name):
         return files, low_wave, high_wave
     except KeyError:
         raise ValueError(f"Network '{model_name}' not found in config")
+
+def initialize_ai_models(load_ai_model, model_names, model_path):
+    '''
+    Load ai tensorflow models.
+
+    Parameters
+    ----------
+    load_model : String
+        Either 'all' to load every model or the model name
+    model_names: Dictionary
+        Dictionary of species in each mixture
+
+    Returns
+    ----------
+    low_waves, high_waves: Dictionaries
+        Lower/higher wavelength cutoffs for each mixture (returned for 'all')
+    low_models, mid_models, high_models: Dictionaries
+        Loaded models in each wavelength range for each mixture (returned for 'all')
+    low_wave, high_wave: floats
+        Lower/higher wavelength cutoffs (returned for a specified model)
+    low_model, mid_model, high_model: tensorflow models
+        Loaded models in each wavelength range (returned for a specified model)
+    best_model: tuple
+        The specified mixture and its species (returned for a specified model)
+    '''
+    from tensorflow.keras.models import load_model
+
+    # load all models by default if one is not specified
+    if load_ai_model == 'all':
+
+        # prepare output
+        low_waves = {}
+        high_waves = {}
+        low_models = {}
+        mid_models = {}
+        high_models = {}
+
+        for model in model_names.keys():
+            (model_files, low_waves[model], high_waves[model]) = get_model_info(model)
+
+            # load all models for each mixture
+            low_models[model] = load_model(
+                model_path + model_files[0]
+            )
+            mid_models[model] = load_model(
+                model_path + model_files[1]
+            )
+            high_models[model] = load_model(
+                model_path + model_files[2]
+            )
+
+        return low_waves, high_waves, low_models, mid_models, high_models
+
+    else:
+        # get info for the specified model
+        model_files, low_wave, high_wave \
+            = get_model_info(load_ai_model)
+
+        # save mixture info
+        best_model = (load_ai_model, model_names[load_ai_model])
+
+        # load models for each wavelength range
+        low_model = load_model(
+            model_path + model_files[0]
+        )
+        mid_model = load_model(
+            model_path + model_files[1]
+        )
+        high_model = load_model(
+            model_path + model_files[2]
+        )
+
+        return low_wave, high_wave, low_model, mid_model, high_model, best_model
