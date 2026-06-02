@@ -18,9 +18,9 @@ sys.path.insert(0, os.path.abspath("../.."))
 
 # -- Project information -----------------------------------------------------
 
-project = "Nimbus"
-copyright = "2025, Sven Kiefer"
-author = "Sven Kiefer"
+project = "MieNet"
+copyright = "2026, Daisy Attaway"
+author = "Daisy Attaway"
 
 # The full version, including alpha/beta/rc tags
 release = "0.1"

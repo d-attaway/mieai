@@ -1,4 +1,4 @@
-""" MieAI class """
+""" MieNet class """
 # pylint: disable=C0415,R0902,R0912,R0914,R0915
 
 import os
@@ -11,9 +11,9 @@ from .mixing_theory import mixing_theory
 from .data_handling import get_models
 
 
-class Mieai:
+class MieNet:
     """
-    MieAI class to calcualte mie opacities using one of three methods:
+    MieNet class to calculate mie opacities using one of three methods:
     - efficiencies: Use LLL and miepython and perform full calcu
     - ai_efficiencies
     - grid_efficiencies
@@ -29,14 +29,14 @@ class Mieai:
         Parameters
         ----------
         use_ai : bool
-            If False, AI will be disabled. This allows to use MieAi without installing tensorflow.
+            If False, AI will be disabled. This allows to use MieNet without installing tensorflow.
         load_ai_model : str
             Which AI model to load. Defualt is 'all', which loads all models. User can input
             model names to load a specific model.
         default_model_location : str, optional
-            Location of opacity data. If none, MieAi defaults are used.
+            Location of opacity data. If none, MieNet defaults are used.
         mute : bool, optional
-            If True, MieAi will produce no diagnostic outputs and runs quietly.
+            If True, MieNet will produce no diagnostic outputs and runs quietly.
         """
 
         # ==== General preparations ===============================================================
@@ -345,7 +345,7 @@ class Mieai:
 
     def download_models(self):
         '''
-        Download MieAi models from Zenodo and load all models/specified model.
+        Download MieNet models from Zenodo and load all models/specified model.
         '''
         # check if files already exsist
         models = glob.glob(self.model_path + '*.keras')
