@@ -2,14 +2,14 @@
    :alt: Nimbus logo
    :align: center
 
-Welcome to Nimbus
+Welcome to MieNet
 =================
 
 .. image:: !! ADD Code Cove link !!
 .. image:: https://raw.githubusercontent.com/d-attaway/mieai/refs/heads/main/.github/workflows/pylint.svg
 .. image:: https://raw.githubusercontent.com/d-attaway/mieai/refs/heads/main/.github/workflows/python.svg
 
-MieAi is a software package to calculate the opacities of heterogenouse cloud particles. To accelerate the otherwise slow calcualtions, it provides three methods:
+MieNet is a software package to calculate the opacities of heterogenouse cloud particles. To accelerate the otherwise slow calcualtions, it provides three methods:
 
 - 'Full': Perform effective refractive indice and Mie theory calculation.
 - 'Grid': Precalculate opacity grids provide fast approximation to cloud particle opacities.
@@ -19,12 +19,12 @@ Fully trained models are provided on `Zenodo <LINK TO ZENODO>`_, or can be train
 
 Credit
 ------
-If you use MieAi, please cite the following papers:
+If you use MieNet, please cite the following papers:
 
 - `Attaway et al. (2026) <LINK TO PAPER>`_
 - `Kiefer et al. (2026) <LINK TO PAPER>`_
 
-Also consider citing the softwares MieAi is based on:
+Also consider citing the softwares MieNet is based on:
 
 - `Prahl et al. (2026) <LINK TO PAPER>`_
 - `Tensorflow citation (2026) <LINK TO PAPER>`_

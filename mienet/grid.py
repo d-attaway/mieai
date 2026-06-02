@@ -217,7 +217,7 @@ def load_grid_efficiency(self, file_name=None, ds_grid=None, ds_grid_name=None):
 
     Parameters
     ----------
-    self : MieAi class
+    self : MieNet class
     file_name : If given, only this file is loaded, if None, data_path will be checked.
     ds_grid : xarray.Dataset from produce_efficiency_grid, also requires ds_grid_name
     ds_grid_name : string, name under which ds_grid is saved
