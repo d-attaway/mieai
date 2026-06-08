@@ -6,7 +6,7 @@ import glob
 import numpy as np
 import miepython as mie
 
-from .sub_functions import read_in_refindex, calculate_subradii, get_model_info, initialize_ai_models
+from .sub_functions import read_in_refindex, calculate_subradii, initialize_ai_models
 from .mixing_theory import mixing_theory
 from .data_handling import get_models
 
@@ -52,34 +52,19 @@ class MieNet:
         # ==== Prepare Neural Network =============================================================
         if use_ai:
 
-            # model options
-            self.model_names = {
-                "MODEL1": ['TiO2', 'Fe', 'Mg2SiO4'],
-                "MODEL2": ['TiO2', 'Fe', 'MgSiO3'],
-                "MODEL3": ['SiO2', 'MgSiO3', 'Mg2SiO4'],
-                "MODEL4": ['SiO2', 'MgSiO3', 'Fe'],
-            }
-
             # models location
             if default_model_location is not None:
                 self.model_path = default_model_location
             # default data location
             else:
-                self.model_path = os.path.dirname(__file__)
+                self.model_path = os.path.dirname(__file__) + '/models/'
 
             # only load models if the model files exist
             models = glob.glob(self.model_path + '*.keras')
             if models:
-
-                # load all models
-                if load_ai_model == 'all':
-                    self.low_waves, self.high_waves, self.low_models, self.mid_models, self.high_models \
-                        = initialize_ai_models(load_ai_model, self.model_names, self.model_path)
-
-                # load specified model
-                else:
-                    self.low_wave, self.high_wave, self.low_model, self.mid_model, self.high_model, self.best_model \
-                        = initialize_ai_models(load_ai_model, self.model_names, self.model_path)
+                # load models
+                self.low_waves, self.high_waves, self.low_models, self.mid_models, self.high_models, self.species \
+                    = initialize_ai_models(load_ai_model, self.model_path)
 
         # ==== List of default datasets
         # user input data location
@@ -125,7 +110,7 @@ class MieNet:
             # find all models that include all species
             l_set = set(volume_mixing_ratios.keys())
             valid_models = {
-                name: data for name, data in self.model_names.items()
+                name: data for name, data in self.species.items()
                 if l_set.issubset(data)
             }
             # check if there are no matching models
@@ -149,23 +134,25 @@ class MieNet:
             high_model = self.high_models[best_model[0]]
 
         else:
+            # model info
+            best_model = [self.load_ai_model, self.species]
+
             # add zero array to vmr dictionary if using less than the total amount of species
-            if len(volume_mixing_ratios.keys()) != len(self.best_model[1]):
-                missing_species = [key for key in self.best_model[1] if key not in volume_mixing_ratios]
+            if len(volume_mixing_ratios.keys()) != len(best_model[1]):
+                missing_species = [key for key in best_model[1] if key not in volume_mixing_ratios]
                 for species in missing_species:
                     volume_mixing_ratios[species] = np.zeros_like(next(iter(volume_mixing_ratios.values())))
 
             # check correct model is initialized for given volume mixing ratios
-            if sorted(self.best_model[1]) != sorted(volume_mixing_ratios.keys()):
+            if sorted(best_model[1]) != sorted(volume_mixing_ratios.keys()):
                 raise ValueError("Incorrect AI model initialized for this mixture")
 
             # get info for chosen model
-            best_model = self.best_model
-            low_wave = self.low_wave
-            high_wave = self.high_wave
-            low_model = self.low_model
-            mid_model = self.mid_model
-            high_model = self.high_model
+            low_wave = self.low_waves
+            high_wave = self.high_waves
+            low_model = self.low_models
+            mid_model = self.mid_models
+            high_model = self.high_models
 
         # ==== Input checks =======================================================================
 
@@ -360,15 +347,12 @@ class MieNet:
         '''
         Download MieNet models from Zenodo and load all models/specified model.
         '''
-        # download models
-        get_models(self.model_path.removesuffix('/models/'))
+        # check if files already exsist
+        models = glob.glob(self.model_path + '*.keras')
+        if not models:
+            # download models
+            get_models(self.model_path)
 
-        # load models
-        if self.load_ai_model == 'all':
-            self.low_waves, self.high_waves, self.low_models, self.mid_models, self.high_models \
-                = initialize_ai_models(self.load_ai_model, self.model_names, self.model_path)
-
-        # load specified model
-        else:
-            self.low_wave, self.high_wave, self.low_model, self.mid_model, self.high_model, self.best_model \
-                = initialize_ai_models(self.load_ai_model, self.model_names, self.model_path)
+            # load models
+            self.low_waves, self.high_waves, self.low_models, self.mid_models, self.high_models, self.species \
+                = initialize_ai_models(self.load_ai_model, self.model_path)

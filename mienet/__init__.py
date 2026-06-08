@@ -1,3 +1,3 @@
 """ Basic mienet class import """
 
-from .mienet import Mieai
+from .mienet import MieNet

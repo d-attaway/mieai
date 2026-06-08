@@ -19,7 +19,13 @@ def get_models(data_location):
     r = requests.get(url)
     ZipFile(BytesIO(r.content)).extractall(data_location)
 
+    # move files out of models folder
+    models_folder = os.path.join(data_location, 'models')
+    for f in os.listdir(models_folder):
+        shutil.move(os.path.join(models_folder, f), data_location)
+    shutil.rmtree(models_folder)
+
     # delete MACOSX folder
     shutil.rmtree(os.path.join(data_location, '__MACOSX'))
 
-    return os.path.join(data_location, 'models')
+    return data_location
