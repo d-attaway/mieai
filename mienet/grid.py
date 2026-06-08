@@ -236,7 +236,7 @@ def load_grid_efficiency(self, file_name=None, ds_grid=None, ds_grid_name=None):
     else:
         grid_files = [file_name]
 
-    # ==== Looop over all files
+    # ==== Loop over all files
     for grid_file in grid_files:
         try:
             # get data and assign it to the dictionary
